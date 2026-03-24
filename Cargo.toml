@@ -7,7 +7,6 @@ license = "MIT or Apache-2.0"
 
 [dependencies]
 tokio = { version = "1.50", features = ["full"] }
-anyhow = "1.0.100"
 
 [workspace]
 members = [
