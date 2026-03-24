@@ -9,12 +9,22 @@ use tokio::sync::mpsc;
 
 pub static STATUS: OnceLock<Arc<StatusEmitter>> = OnceLock::new();
 
-pub fn setup_status(buffer: usize) -> mpsc::Receiver<StatusEvent> {
-    let (tx, rx) = mpsc::channel::<StatusEvent>(buffer);
+pub struct StatusReceiver {
+    inner: mpsc::Receiver<StatusEvent>,
+}
+
+impl StatusReceiver {
+    pub async fn recv(&mut self) -> Option<StatusEvent> {
+        self.inner.recv().await
+    }
+}
+
+pub fn setup_status(buffer: usize) -> StatusReceiver {
+    let (tx, rx) = tokio::sync::mpsc::channel(buffer);
     let handler = Arc::new(StatusChannel::new(tx));
     let emitter = Arc::new(StatusEmitter::new(handler));
     let _ = STATUS.set(emitter);
-    rx
+    StatusReceiver { inner: rx }
 }
 
 // =================
