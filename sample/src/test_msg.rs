@@ -1,4 +1,4 @@
-use status_msg::{StatusEvent, status, status_emit};
+use simple_status::{StatusEvent, status, status_emit};
 
 pub fn message_non_emit() -> StatusEvent {
     status!("this is non emit")

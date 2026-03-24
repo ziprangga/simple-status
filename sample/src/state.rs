@@ -1,4 +1,4 @@
-use status_msg::StatusEvent;
+use simple_status::StatusEvent;
 
 #[derive(Debug, Clone)]
 pub enum AppMessage {

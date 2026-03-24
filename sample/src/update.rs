@@ -1,5 +1,5 @@
 use iced::Task;
-use status_msg::*;
+use simple_status::*;
 
 use crate::state::{AppMessage, AppState};
 use crate::task::{message_emit_async, message_non_emit_async};

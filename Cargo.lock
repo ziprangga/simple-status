@@ -2677,7 +2677,7 @@ name = "sample"
 version = "0.1.0"
 dependencies = [
  "iced",
- "status-msg",
+ "simple-status",
  "tokio",
 ]
 
@@ -2809,6 +2809,14 @@ name = "simdutf8"
 version = "0.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e3a9fe34e3e7a50316060351f37187a3f546bce95496156754b601a5fa71b76e"
+
+[[package]]
+name = "simple-status"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "tokio",
+]
 
 [[package]]
 name = "skrifa"
@@ -2969,14 +2977,6 @@ name = "static_assertions"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a2eb9349b6444b326872e140eb1cf5e7c522154d69e7a0ffb0fb81c06b37543f"
-
-[[package]]
-name = "status-msg"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "tokio",
-]
 
 [[package]]
 name = "strict-num"

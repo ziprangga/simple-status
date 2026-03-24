@@ -1,4 +1,4 @@
-use status_msg::StatusEvent;
+use simple_status::StatusEvent;
 
 use crate::test_msg::*;
 pub async fn message_non_emit_async() -> StatusEvent {

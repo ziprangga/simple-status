@@ -1,5 +1,5 @@
 [package]
-name = "status-msg"
+name = "simple-status"
 version = "0.1.0"
 edition = "2024"
 
