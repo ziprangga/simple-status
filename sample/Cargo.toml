@@ -1,0 +1,15 @@
+[package]
+name = "sample"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+status-msg = { path = ".." }
+tokio = { version = "1.50", features = ["full"] }
+iced = { git = "https://github.com/ziprangga/iced.git", features = [
+    "image-without-codecs",
+    "tokio",
+    "canvas",
+    "wgpu",
+    "advanced",
+] }
