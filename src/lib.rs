@@ -10,13 +10,13 @@ pub use status_format::StatusFormatConfig;
 
 use std::sync::Arc;
 
-pub fn setup_status(buffer: usize) -> (Arc<StatusEmitter>, StatusReceiver) {
+pub fn setup_status(buffer: usize) -> (Arc<StatusEmitter>, Arc<StatusReceiver>) {
     let (tx, rx) = tokio::sync::mpsc::channel(buffer);
     let handler = Arc::new(ChannelSender::new(tx));
     let emitter = Arc::new(StatusEmitter::new(handler));
 
     let channel_receiver = Arc::new(ChannelReceiver::new(rx));
-    let receiver = StatusReceiver::new(channel_receiver);
+    let receiver = Arc::new(StatusReceiver::new(channel_receiver));
     (emitter, receiver)
 }
 
