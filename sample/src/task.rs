@@ -1,7 +1,7 @@
-use simple_status::{StatusEmitter, StatusEvent};
+use simple_status::{Status, StatusEmitter};
 
 use crate::test_msg::*;
-pub async fn message_non_emit_async() -> StatusEvent {
+pub async fn message_non_emit_async() -> Status {
     message_non_emit()
 }
 

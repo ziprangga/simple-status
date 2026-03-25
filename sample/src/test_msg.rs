@@ -1,6 +1,6 @@
-use simple_status::{StatusEmitter, StatusEvent, status, status_emit};
+use simple_status::{Status, StatusEmitter, status, status_emit};
 
-pub fn message_non_emit() -> StatusEvent {
+pub fn message_non_emit() -> Status {
     status!("this is non emit/return status")
 }
 

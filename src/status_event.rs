@@ -1,22 +1,4 @@
 use std::path::PathBuf;
-use std::sync::Arc;
-
-pub trait StatusEmitterHandler: Send + Sync {
-    fn emit_event(&self, event: StatusEvent);
-}
-
-pub trait StatusReceiverHandler: Send + Sync {
-    fn recv_event(&self) -> Option<StatusEvent>;
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Field {
-    Stage,
-    Current,
-    Total,
-    Message,
-    Path,
-}
 
 #[derive(Debug, Default, Clone)]
 pub struct StatusEvent {
@@ -25,116 +7,72 @@ pub struct StatusEvent {
     total: Option<usize>,
     message: Option<String>,
     path: Option<PathBuf>,
-
-    order: Vec<Field>,
-    separator: String,
 }
 
 impl StatusEvent {
+    pub fn builder() -> StatusEventBuilder {
+        StatusEventBuilder::new()
+    }
+
+    pub fn stage(&self) -> Option<&str> {
+        self.stage.as_deref()
+    }
+
+    pub fn current(&self) -> Option<usize> {
+        self.current
+    }
+
+    pub fn total(&self) -> Option<usize> {
+        self.total
+    }
+
+    pub fn message(&self) -> Option<&str> {
+        self.message.as_deref()
+    }
+
+    pub fn path(&self) -> Option<&PathBuf> {
+        self.path.as_ref()
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct StatusEventBuilder {
+    status_event: StatusEvent,
+}
+
+impl StatusEventBuilder {
     pub fn new() -> Self {
         Self {
-            separator: " ".to_string(),
-            ..Default::default()
+            status_event: StatusEvent::default(),
         }
     }
 
-    pub fn with_stage(mut self, stage: impl Into<String>) -> Self {
-        if self.stage.is_none() {
-            self.order.push(Field::Stage);
-        }
-        self.stage = Some(stage.into());
+    pub fn stage(mut self, stage: impl Into<String>) -> Self {
+        self.status_event.stage = Some(stage.into());
         self
     }
 
-    pub fn with_current(mut self, current: usize) -> Self {
-        if self.current.is_none() {
-            self.order.push(Field::Current);
-        }
-        self.current = Some(current);
+    pub fn current(mut self, current: usize) -> Self {
+        self.status_event.current = Some(current);
         self
     }
 
-    pub fn with_total(mut self, total: usize) -> Self {
-        if self.total.is_none() {
-            self.order.push(Field::Total);
-        }
-        self.total = Some(total);
+    pub fn total(mut self, total: usize) -> Self {
+        self.status_event.total = Some(total);
         self
     }
 
-    pub fn with_message(mut self, msg: impl Into<String>) -> Self {
-        if self.message.is_none() {
-            self.order.push(Field::Message);
-        }
-        self.message = Some(msg.into());
+    pub fn message(mut self, message: impl Into<String>) -> Self {
+        self.status_event.message = Some(message.into());
         self
     }
 
-    pub fn with_path(mut self, path: PathBuf) -> Self {
-        if self.path.is_none() {
-            self.order.push(Field::Path);
-        }
-        self.path = Some(path);
+    pub fn path(mut self, path: PathBuf) -> Self {
+        self.status_event.path = Some(path);
         self
     }
 
-    pub fn with_separator(mut self, sep: impl Into<String>) -> Self {
-        self.separator = sep.into();
-        self
-    }
-}
-
-impl std::fmt::Display for StatusEvent {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let mut first = true;
-
-        for field in &self.order {
-            let value: Option<String> = match field {
-                Field::Stage => self.stage.clone(),
-                Field::Message => self.message.clone(),
-                Field::Current => self.current.map(|v| v.to_string()),
-                Field::Total => self.total.map(|v| v.to_string()),
-                Field::Path => self.path.as_ref().map(|p| p.display().to_string()),
-            };
-
-            if let Some(v) = value {
-                if !first {
-                    write!(f, "{}", self.separator)?;
-                }
-                write!(f, "{v}")?;
-                first = false;
-            }
-        }
-
-        Ok(())
-    }
-}
-
-#[derive(Clone)]
-pub struct StatusEmitter {
-    emitter: Arc<dyn StatusEmitterHandler>,
-}
-
-impl StatusEmitter {
-    pub fn new(emitter: Arc<dyn StatusEmitterHandler>) -> Self {
-        Self { emitter }
-    }
-
-    pub fn emit(&self, event: StatusEvent) {
-        self.emitter.emit_event(event);
-    }
-}
-
-#[derive(Clone)]
-pub struct StatusReceiver {
-    receiver: Arc<dyn StatusReceiverHandler>,
-}
-
-impl StatusReceiver {
-    pub fn new(receiver: Arc<dyn StatusReceiverHandler>) -> Self {
-        Self { receiver }
-    }
-    pub fn try_recv(&self) -> Option<StatusEvent> {
-        self.receiver.recv_event()
+    pub fn build(self) -> StatusEvent {
+        self.status_event
     }
 }
