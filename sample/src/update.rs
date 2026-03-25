@@ -2,7 +2,7 @@ use iced::Task;
 use simple_status::*;
 
 use crate::state::{AppMessage, AppState};
-use crate::task::{message_emit_async, message_non_emit_async};
+use crate::task::{message_emit_async_task, message_emit_task, message_non_emit_task};
 
 pub fn update(state: &mut AppState, message: AppMessage) -> Task<AppMessage> {
     match message {
@@ -15,16 +15,17 @@ pub fn update(state: &mut AppState, message: AppMessage) -> Task<AppMessage> {
             let (emitter, receiver) = setup_status(10);
 
             // Task for non-emit status
-            let non_emit_task = Task::perform(async { message_non_emit_async().await }, |se| {
+            let non_emit_task = Task::perform(async { message_non_emit_task().await }, |se| {
                 AppMessage::StatusNonEmit(se)
             });
 
             // Task for emitted status
             let emit_task = {
                 let emitter = emitter.clone();
+                let receiver = receiver.clone();
                 Task::perform(
                     async move {
-                        message_emit_async(&emitter).await;
+                        message_emit_task(&emitter).await;
                         receiver.try_recv()
                     },
                     |maybe_emit| match maybe_emit {
@@ -34,7 +35,27 @@ pub fn update(state: &mut AppState, message: AppMessage) -> Task<AppMessage> {
                 )
             };
 
-            Task::batch(vec![non_emit_task, emit_task])
+            let emit_task_async = {
+                let emitter = emitter.clone();
+                let receiver = receiver.clone();
+                Task::perform(
+                    async move {
+                        message_emit_async_task(&emitter).await;
+                        receiver.try_recv()
+                    },
+                    |maybe_emit| match maybe_emit {
+                        Some(se) => AppMessage::StatusEmitAsync(se),
+                        None => AppMessage::NoOperations,
+                    },
+                )
+            };
+
+            Task::batch(vec![non_emit_task, emit_task, emit_task_async])
+        }
+
+        AppMessage::StatusEmitAsync(se) => {
+            state.status_emit_async = se;
+            Task::none()
         }
 
         AppMessage::StatusEmit(se) => {

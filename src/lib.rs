@@ -1,8 +1,10 @@
 mod status_channel;
+mod status_emre;
 mod status_event;
 mod status_format;
 
 pub use status_channel::{ChannelReceiver, ChannelSender};
+pub use status_emre::{StatusEmitter, StatusEmitterHandler, StatusReceiver, StatusReceiverHandler};
 pub use status_event::StatusEvent;
 pub use status_format::StatusFormatConfig;
 
@@ -16,43 +18,6 @@ pub fn setup_status(buffer: usize) -> (Arc<StatusEmitter>, StatusReceiver) {
     let channel_receiver = Arc::new(ChannelReceiver::new(rx));
     let receiver = StatusReceiver::new(channel_receiver);
     (emitter, receiver)
-}
-
-pub trait StatusEmitterHandler: Send + Sync {
-    fn emit_event(&self, status: Status);
-}
-
-pub trait StatusReceiverHandler: Send + Sync {
-    fn recv_event(&self) -> Option<Status>;
-}
-
-#[derive(Clone)]
-pub struct StatusEmitter {
-    emitter: Arc<dyn StatusEmitterHandler>,
-}
-
-impl StatusEmitter {
-    pub fn new(emitter: Arc<dyn StatusEmitterHandler>) -> Self {
-        Self { emitter }
-    }
-
-    pub fn emit(&self, status: Status) {
-        self.emitter.emit_event(status);
-    }
-}
-
-#[derive(Clone)]
-pub struct StatusReceiver {
-    receiver: Arc<dyn StatusReceiverHandler>,
-}
-
-impl StatusReceiver {
-    pub fn new(receiver: Arc<dyn StatusReceiverHandler>) -> Self {
-        Self { receiver }
-    }
-    pub fn try_recv(&self) -> Option<Status> {
-        self.receiver.recv_event()
-    }
 }
 
 #[derive(Debug, Default, Clone)]
@@ -86,7 +51,7 @@ impl std::fmt::Display for Status {
 // =================
 
 #[macro_export]
-macro_rules! status {
+macro_rules! status_event {
     (
         $(stage: $stage:expr,)?
         $(current: $current:expr,)?
@@ -100,42 +65,42 @@ macro_rules! status {
         $(builder = builder.total($total);)?
         $(builder = builder.message($message);)?
         $(builder = builder.path($path);)?
-        $crate::Status::new(builder.build())
+        builder.build()
     }};
 
     ($($arg:tt)+) => {{
+        $crate::StatusEvent::builder()
+            .message(format!($($arg)+))
+            .build()
+    }};
+}
+
+#[macro_export]
+macro_rules! status {
+    ($($arg:tt)+) => {{
         $crate::Status::new(
-            $crate::StatusEvent::builder()
-                .message(format!($($arg)+))
-                .build()
+            $crate::status_event!($($arg)+)
         )
     }};
 }
 
 #[macro_export]
 macro_rules! status_emit {
-    ($emitter:expr,
-        $(stage: $stage:expr,)?
-        $(current: $current:expr,)?
-        $(total: $total:expr,)?
-        $(message: $message:expr,)?
-        $(path: $path:expr,)?
-    ) => {{
-        let status = $crate::Status::new(
-            $crate::StatusEvent::builder()
-                $(.stage($stage))?
-                $(.current($current))?
-                $(.total($total))?
-                $(.message($message))?
-                $(.path($path))?
-                .build()
-        );
-        $emitter.emit(status);
+    // async mode
+    (async, $emitter:expr, $($arg:tt)+) => {{
+        $emitter.emit(
+            $crate::Status::new(
+                $crate::status_event!($($arg)+)
+            )
+        ).await;
     }};
 
+    // sync mode (default)
     ($emitter:expr, $($arg:tt)+) => {{
-        $emitter.emit(
-            $crate::status!( $($arg)+ )
+        $emitter.try_emit(
+            $crate::Status::new(
+                $crate::status_event!($($arg)+)
+            )
         );
     }};
 }

@@ -3,6 +3,7 @@ use simple_status::Status;
 #[derive(Debug, Clone)]
 pub enum AppMessage {
     ShowMessage,
+    StatusEmitAsync(Status),
     StatusEmit(Status),
     StatusNonEmit(Status),
     NoOperations,
@@ -10,6 +11,7 @@ pub enum AppMessage {
 
 #[derive(Clone)]
 pub struct AppState {
+    pub status_emit_async: Status,
     pub status_emit: Status,
     pub status_non_emit: Status,
     pub status_direct: Status,
@@ -18,6 +20,7 @@ pub struct AppState {
 impl AppState {
     pub fn new() -> Self {
         Self {
+            status_emit_async: Status::default(),
             status_emit: Status::default(),
             status_non_emit: Status::default(),
             status_direct: Status::default(),
@@ -25,6 +28,7 @@ impl AppState {
     }
 
     pub fn reset(&mut self) {
+        self.status_emit_async = Status::default();
         self.status_emit = Status::default();
         self.status_non_emit = Status::default();
         self.status_direct = Status::default();

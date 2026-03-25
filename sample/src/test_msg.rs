@@ -7,3 +7,7 @@ pub fn message_non_emit() -> Status {
 pub fn message_emit(status: &StatusEmitter) {
     status_emit!(status, "this is emit");
 }
+
+pub async fn message_emit_async(status: &StatusEmitter) {
+    status_emit!(async, status, "this is async emit");
+}

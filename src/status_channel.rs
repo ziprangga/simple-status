@@ -1,3 +1,5 @@
+use std::future::Future;
+use std::pin::Pin;
 use tokio::sync::Mutex;
 use tokio::sync::mpsc;
 use tokio::sync::mpsc::Sender;
@@ -21,8 +23,14 @@ impl ChannelSender {
 }
 
 impl StatusEmitterHandler for ChannelSender {
-    fn emit_event(&self, event: Status) {
+    fn try_emit(&self, event: Status) {
         self.send_event(event);
+    }
+
+    fn emit(&self, status: Status) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
+        Box::pin(async move {
+            let _ = self.channel_sender.send(status).await;
+        })
     }
 }
 
@@ -47,7 +55,14 @@ impl ChannelReceiver {
 }
 
 impl StatusReceiverHandler for ChannelReceiver {
-    fn recv_event(&self) -> Option<Status> {
+    fn try_recv(&self) -> Option<Status> {
         self.recv_event()
+    }
+
+    fn recv(&self) -> Pin<Box<dyn Future<Output = Option<Status>> + Send + '_>> {
+        Box::pin(async move {
+            let mut guard = self.receiver.lock().await;
+            guard.recv().await
+        })
     }
 }
