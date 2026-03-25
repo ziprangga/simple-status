@@ -1,95 +1,90 @@
 use crate::status_event::StatusEvent;
 
-#[derive(Debug)]
+pub trait StatusFormatter {
+    fn format(&self, event: &StatusEvent) -> String;
+}
+
+impl<F> StatusFormatter for F
+where
+    F: Fn(&StatusEvent) -> String,
+{
+    fn format(&self, event: &StatusEvent) -> String {
+        (self)(event)
+    }
+}
+
 pub struct StatusFormatConfig {
-    pub stage: bool,
-    pub current: bool,
-    pub total: bool,
-    pub message: bool,
-    pub path: bool,
-    pub separator: String,
+    pub parts: Vec<Box<dyn Fn(&StatusEvent) -> Option<String>>>,
+    pub separator: Option<String>,
 }
 
 impl StatusFormatConfig {
-    pub fn stage(&mut self, write: bool) -> &mut Self {
-        self.stage = write;
+    pub fn new() -> Self {
+        Self {
+            parts: Vec::new(),
+            separator: None,
+        }
+    }
+
+    pub fn stage<F: 'static + Fn(&str) -> String>(&mut self, fmt: F) -> &mut Self {
+        self.parts
+            .push(Box::new(move |s: &StatusEvent| s.stage().map(|v| fmt(v))));
         self
     }
-    pub fn current(&mut self, write: bool) -> &mut Self {
-        self.current = write;
+
+    pub fn current<F: 'static + Fn(usize) -> String>(&mut self, fmt: F) -> &mut Self {
+        self.parts
+            .push(Box::new(move |s: &StatusEvent| s.current().map(|v| fmt(v))));
         self
     }
-    pub fn total(&mut self, write: bool) -> &mut Self {
-        self.total = write;
+
+    pub fn total<F: 'static + Fn(usize) -> String>(&mut self, fmt: F) -> &mut Self {
+        self.parts
+            .push(Box::new(move |s: &StatusEvent| s.total().map(|v| fmt(v))));
         self
     }
-    pub fn message(&mut self, write: bool) -> &mut Self {
-        self.message = write;
+
+    pub fn message<F: 'static + Fn(&str) -> String>(&mut self, fmt: F) -> &mut Self {
+        self.parts
+            .push(Box::new(move |s: &StatusEvent| s.message().map(|v| fmt(v))));
         self
     }
-    pub fn path(&mut self, write: bool) -> &mut Self {
-        self.path = write;
+
+    pub fn path<F: 'static + Fn(&std::path::Path) -> String>(&mut self, fmt: F) -> &mut Self {
+        self.parts
+            .push(Box::new(move |s: &StatusEvent| s.path().map(|v| fmt(v))));
         self
     }
+
     pub fn separator(&mut self, sep: impl Into<String>) -> &mut Self {
-        self.separator = sep.into();
+        self.separator = Some(sep.into());
         self
     }
 
     pub fn write(&self, status: &StatusEvent) -> String {
-        let mut writer = StatusLayoutWriter {
-            config: self,
-            parts: Vec::new(),
-        };
-        writer.write(status);
-        writer.parts.join(&self.separator)
+        let parts: Vec<String> = self.parts.iter().filter_map(|f| f(status)).collect();
+        match &self.separator {
+            Some(sep) => parts.join(sep),
+            None => parts.concat(),
+        }
     }
 }
 
 impl Default for StatusFormatConfig {
     fn default() -> Self {
-        Self {
-            stage: true,
-            current: true,
-            total: true,
-            message: true,
-            path: true,
-            separator: " | ".to_string(),
-        }
+        let mut cfg = StatusFormatConfig::new();
+        cfg.stage(|v| v.to_string());
+        cfg.current(|v| v.to_string());
+        cfg.total(|v| v.to_string());
+        cfg.message(|v| v.to_string());
+        cfg.path(|v| v.display().to_string());
+        cfg.separator = Some(" | ".to_string());
+        cfg
     }
 }
 
-struct StatusLayoutWriter<'a> {
-    config: &'a StatusFormatConfig,
-    parts: Vec<String>,
-}
-
-impl<'a> StatusLayoutWriter<'a> {
-    fn write(&mut self, status: &StatusEvent) {
-        if self.config.stage {
-            if let Some(v) = &status.stage() {
-                self.parts.push(v.to_string());
-            }
-        }
-        if self.config.current {
-            if let Some(v) = status.current() {
-                self.parts.push(v.to_string());
-            }
-        }
-        if self.config.total {
-            if let Some(v) = status.total() {
-                self.parts.push(v.to_string());
-            }
-        }
-        if self.config.message {
-            if let Some(v) = &status.message() {
-                self.parts.push(v.to_string());
-            }
-        }
-        if self.config.path {
-            if let Some(v) = &status.path() {
-                self.parts.push(v.display().to_string());
-            }
-        }
+impl StatusFormatter for StatusFormatConfig {
+    fn format(&self, event: &StatusEvent) -> String {
+        self.write(event)
     }
 }

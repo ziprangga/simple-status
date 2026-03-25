@@ -6,7 +6,7 @@ mod status_format;
 pub use status_channel::{ChannelReceiver, ChannelSender};
 pub use status_emre::{StatusEmitter, StatusEmitterHandler, StatusReceiver, StatusReceiverHandler};
 pub use status_event::StatusEvent;
-pub use status_format::StatusFormatConfig;
+pub use status_format::{StatusFormatConfig, StatusFormatter};
 
 use std::sync::Arc;
 
@@ -34,15 +34,18 @@ impl Status {
         &self.event
     }
 
-    pub fn format(&self, cfg: &StatusFormatConfig) -> String {
-        cfg.write(&self.event)
+    pub fn format<F>(&self, f: F) -> String
+    where
+        F: StatusFormatter,
+    {
+        f.format(&self.event)
     }
 }
 
 impl std::fmt::Display for Status {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let cfg = StatusFormatConfig::default();
-        write!(f, "{}", self.format(&cfg))
+        write!(f, "{}", self.format(cfg))
     }
 }
 
