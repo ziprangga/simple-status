@@ -1,12 +1,16 @@
 use std::path::PathBuf;
 use std::sync::Arc;
 
-pub trait StatusHandler: Send + Sync {
-    fn handle_event(&self, event: StatusEvent);
+pub trait StatusEmitterHandler: Send + Sync {
+    fn emit_event(&self, event: StatusEvent);
+}
+
+pub trait StatusReceiverHandler: Send + Sync {
+    fn recv_event(&self) -> Option<StatusEvent>;
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum Field {
+pub enum Field {
     Stage,
     Current,
     Total,
@@ -16,11 +20,11 @@ enum Field {
 
 #[derive(Debug, Default, Clone)]
 pub struct StatusEvent {
-    pub stage: Option<String>,
-    pub current: Option<usize>,
-    pub total: Option<usize>,
-    pub message: Option<String>,
-    pub path: Option<PathBuf>,
+    stage: Option<String>,
+    current: Option<usize>,
+    total: Option<usize>,
+    message: Option<String>,
+    path: Option<PathBuf>,
 
     order: Vec<Field>,
     separator: String,
@@ -108,15 +112,29 @@ impl std::fmt::Display for StatusEvent {
 
 #[derive(Clone)]
 pub struct StatusEmitter {
-    handler: Arc<dyn StatusHandler>,
+    emitter: Arc<dyn StatusEmitterHandler>,
 }
 
 impl StatusEmitter {
-    pub fn new(handler: Arc<dyn StatusHandler>) -> Self {
-        Self { handler }
+    pub fn new(emitter: Arc<dyn StatusEmitterHandler>) -> Self {
+        Self { emitter }
     }
 
     pub fn emit(&self, event: StatusEvent) {
-        self.handler.handle_event(event);
+        self.emitter.emit_event(event);
+    }
+}
+
+#[derive(Clone)]
+pub struct StatusReceiver {
+    receiver: Arc<dyn StatusReceiverHandler>,
+}
+
+impl StatusReceiver {
+    pub fn new(receiver: Arc<dyn StatusReceiverHandler>) -> Self {
+        Self { receiver }
+    }
+    pub fn try_recv(&self) -> Option<StatusEvent> {
+        self.receiver.recv_event()
     }
 }

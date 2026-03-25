@@ -12,7 +12,7 @@ pub fn update(state: &mut AppState, message: AppMessage) -> Task<AppMessage> {
             state.status_direct = status_direct;
 
             // Setup channel for emitted statuses
-            let mut rx = setup_status(10);
+            let (emitter, receiver) = setup_status(10);
 
             // Task for non-emit status
             let non_emit_task = Task::perform(async { message_non_emit_async().await }, |se| {
@@ -20,16 +20,19 @@ pub fn update(state: &mut AppState, message: AppMessage) -> Task<AppMessage> {
             });
 
             // Task for emitted status
-            let emit_task = Task::perform(
-                async move {
-                    message_emit_async().await;
-                    rx.recv().await
-                },
-                |maybe_emit| match maybe_emit {
-                    Some(se) => AppMessage::StatusEmit(se),
-                    None => AppMessage::NoOperations,
-                },
-            );
+            let emit_task = {
+                let emitter = emitter.clone();
+                Task::perform(
+                    async move {
+                        message_emit_async(&emitter).await;
+                        receiver.try_recv()
+                    },
+                    |maybe_emit| match maybe_emit {
+                        Some(se) => AppMessage::StatusEmit(se),
+                        None => AppMessage::NoOperations,
+                    },
+                )
+            };
 
             Task::batch(vec![non_emit_task, emit_task])
         }

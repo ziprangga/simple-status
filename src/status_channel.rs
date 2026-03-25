@@ -1,24 +1,45 @@
+use std::sync::Mutex;
+use tokio::sync::mpsc;
 use tokio::sync::mpsc::Sender;
 
+use crate::status_event::StatusEmitterHandler;
 use crate::status_event::StatusEvent;
-use crate::status_event::StatusHandler;
+use crate::status_event::StatusReceiverHandler;
 
-pub struct StatusChannel {
-    sender: Sender<StatusEvent>,
+pub struct ChannelSender {
+    channel_sender: Sender<StatusEvent>,
 }
 
-impl StatusChannel {
-    pub fn new(sender: Sender<StatusEvent>) -> Self {
-        Self { sender }
+impl ChannelSender {
+    pub fn new(channel_sender: Sender<StatusEvent>) -> Self {
+        Self { channel_sender }
     }
 
     fn send_event(&self, event: StatusEvent) {
-        let _ = self.sender.try_send(event);
+        let _ = self.channel_sender.try_send(event);
     }
 }
 
-impl StatusHandler for StatusChannel {
-    fn handle_event(&self, event: StatusEvent) {
+impl StatusEmitterHandler for ChannelSender {
+    fn emit_event(&self, event: StatusEvent) {
         self.send_event(event);
+    }
+}
+
+pub struct ChannelReceiver {
+    receiver: Mutex<mpsc::Receiver<StatusEvent>>,
+}
+
+impl ChannelReceiver {
+    pub fn new(rx: mpsc::Receiver<StatusEvent>) -> Self {
+        Self {
+            receiver: Mutex::new(rx),
+        }
+    }
+}
+
+impl StatusReceiverHandler for ChannelReceiver {
+    fn recv_event(&self) -> Option<StatusEvent> {
+        self.receiver.lock().unwrap().try_recv().ok()
     }
 }
