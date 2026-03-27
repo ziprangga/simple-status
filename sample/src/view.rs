@@ -1,4 +1,4 @@
-use iced::widget::Column;
+use iced::widget::{Column, Row};
 use iced::{
     Color, alignment,
     widget::{Container, text},
@@ -6,83 +6,99 @@ use iced::{
 use iced::{Element, Length};
 
 use crate::button_style::*;
-use crate::state::{AppMessage, AppState};
+use crate::state::{AppMessage, AppState, StatusSource};
 
 pub fn view(state: &AppState) -> Element<'_, AppMessage> {
-    let status_msg_emit_async = Container::new(
-        text(state.status_emit_async.to_string())
+    let color = match state.source {
+        StatusSource::EmitAsync => Color::from_rgb8(255, 0, 0),
+        StatusSource::Emit => Color::from_rgb8(0, 255, 0),
+        StatusSource::NonEmit => Color::from_rgb8(0, 0, 255),
+        StatusSource::Direct => Color::from_rgb8(255, 255, 0),
+    };
+
+    let show_status_message = Container::new(
+        text(state.show_status.to_string())
             .size(12)
             .width(Length::Fill)
             .center()
-            .style(|_: &iced::Theme| iced::widget::text::Style {
-                color: Some(Color::from_rgb8(200, 200, 200)),
-            }),
+            .style(move |_| iced::widget::text::Style { color: Some(color) }),
     )
     .width(Length::Fill)
     .align_x(alignment::Horizontal::Center)
     .align_y(alignment::Vertical::Center);
 
-    let status_msg_emit = Container::new(
-        text(state.status_emit.to_string())
-            .size(12)
-            .width(Length::Fill)
-            .center()
-            .style(|_: &iced::Theme| iced::widget::text::Style {
-                color: Some(Color::from_rgb8(200, 200, 200)),
-            }),
-    )
-    .width(Length::Fill)
-    .align_x(alignment::Horizontal::Center)
-    .align_y(alignment::Vertical::Center);
-
-    let status_msg_non_emit = Container::new(
-        text(state.status_non_emit.to_string())
-            .size(12)
-            .width(Length::Fill)
-            .center()
-            .style(|_: &iced::Theme| iced::widget::text::Style {
-                color: Some(Color::from_rgb8(150, 255, 150)),
-            }),
-    )
-    .width(Length::Fill)
-    .align_x(alignment::Horizontal::Center)
-    .align_y(alignment::Vertical::Center);
-
-    let status_msg_direct = Container::new(
-        text(state.status_direct.to_string())
-            .size(12)
-            .width(Length::Fill)
-            .center()
-            .style(|_: &iced::Theme| iced::widget::text::Style {
-                color: Some(Color::from_rgb8(255, 150, 150)),
-            }),
-    )
-    .width(Length::Fill)
-    .align_x(alignment::Horizontal::Center)
-    .align_y(alignment::Vertical::Center);
-
-    let button_show_message = Container::new(
-        CustomButton::new("Click me")
+    let button_emit_async = Container::new(
+        CustomButton::new("Click me (async emit)")
             .text_align_x(alignment::Horizontal::Center)
             .text_align_y(alignment::Vertical::Center)
             .width(Length::Fill)
-            .on_press(AppMessage::ShowMessage)
+            .on_press(AppMessage::ButtonEmitAsync)
             .style(danger_style)
             .view(),
     )
-    .width(Length::Shrink)
+    .width(Length::Fill)
+    .align_x(alignment::Horizontal::Center)
+    .align_y(alignment::Vertical::Center);
+
+    let button_emit = Container::new(
+        CustomButton::new("Click me (emit)")
+            .text_align_x(alignment::Horizontal::Center)
+            .text_align_y(alignment::Vertical::Center)
+            .width(Length::Fill)
+            .on_press(AppMessage::ButtonEmit)
+            .style(custom_btn_style)
+            .view(),
+    )
+    .width(Length::Fill)
+    .align_x(alignment::Horizontal::Center)
+    .align_y(alignment::Vertical::Center);
+
+    let button_non_emit = Container::new(
+        CustomButton::new("Click me (non emit)")
+            .text_align_x(alignment::Horizontal::Center)
+            .text_align_y(alignment::Vertical::Center)
+            .width(Length::Fill)
+            .on_press(AppMessage::ButtonNonEmit)
+            .style(danger_style)
+            .view(),
+    )
+    .width(Length::Fill)
+    .align_x(alignment::Horizontal::Center)
+    .align_y(alignment::Vertical::Center);
+
+    let button_direct = Container::new(
+        CustomButton::new("Click me (direct)")
+            .text_align_x(alignment::Horizontal::Center)
+            .text_align_y(alignment::Vertical::Center)
+            .width(Length::Fill)
+            .on_press(AppMessage::ButtonDirect)
+            .style(custom_btn_style)
+            .view(),
+    )
+    .width(Length::Fill)
+    .align_x(alignment::Horizontal::Center)
+    .align_y(alignment::Vertical::Center);
+
+    let row_button = Container::new(
+        Row::new()
+            .push(button_emit_async)
+            .push(button_emit)
+            .push(button_non_emit)
+            .push(button_direct)
+            .spacing(10)
+            .width(Length::Fill)
+            .align_y(alignment::Vertical::Center),
+    )
+    .width(Length::Fill)
     .align_x(alignment::Horizontal::Center)
     .align_y(alignment::Vertical::Center);
 
     Column::new()
-        .push(status_msg_emit_async)
-        .push(status_msg_emit)
-        .push(status_msg_non_emit)
-        .push(status_msg_direct)
-        .push(button_show_message)
+        .push(show_status_message)
+        .push(row_button)
         .width(Length::Fill)
         .height(Length::Fill)
-        .spacing(10)
+        .spacing(20)
         .padding(10)
         .into()
 }

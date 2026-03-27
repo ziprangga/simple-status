@@ -1,36 +1,38 @@
 use simple_status::Status;
 
+#[derive(Clone, Copy)]
+pub enum StatusSource {
+    EmitAsync,
+    Emit,
+    NonEmit,
+    Direct,
+}
+
 #[derive(Debug, Clone)]
 pub enum AppMessage {
-    ShowMessage,
-    StatusEmitAsync(Status),
-    StatusEmit(Status),
-    StatusNonEmit(Status),
+    ShowStatus(Status),
+    ButtonEmitAsync,
+    ButtonEmit,
+    ButtonNonEmit,
+    ButtonDirect,
     NoOperations,
 }
 
 #[derive(Clone)]
 pub struct AppState {
-    pub status_emit_async: Status,
-    pub status_emit: Status,
-    pub status_non_emit: Status,
-    pub status_direct: Status,
+    pub show_status: Status,
+    pub source: StatusSource,
 }
 
 impl AppState {
     pub fn new() -> Self {
         Self {
-            status_emit_async: Status::default(),
-            status_emit: Status::default(),
-            status_non_emit: Status::default(),
-            status_direct: Status::default(),
+            show_status: Status::default(),
+            source: StatusSource::Direct,
         }
     }
 
     pub fn reset(&mut self) {
-        self.status_emit_async = Status::default();
-        self.status_emit = Status::default();
-        self.status_non_emit = Status::default();
-        self.status_direct = Status::default();
+        self.show_status = Status::default();
     }
 }

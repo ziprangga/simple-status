@@ -24,8 +24,8 @@ fn main() {
         .title("Bristo")
         .position(window::Position::Centered)
         .window(window::Settings {
-            size: Size::new(600.0, 350.0),
-            min_size: Some(Size::new(600.0, 350.0)),
+            size: Size::new(600.0, 100.0),
+            min_size: Some(Size::new(600.0, 100.0)),
             resizable: true,
             decorations: true,
             ..Default::default()
