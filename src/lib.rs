@@ -1,10 +1,12 @@
 mod status_channel;
-mod status_emre;
+mod status_emrec;
 mod status_event;
 mod status_format;
 
 pub use status_channel::{ChannelReceiver, ChannelSender};
-pub use status_emre::{StatusEmitter, StatusEmitterHandler, StatusReceiver, StatusReceiverHandler};
+pub use status_emrec::{
+    StatusEmitter, StatusEmitterHandler, StatusReceiver, StatusReceiverHandler,
+};
 pub use status_event::StatusEvent;
 pub use status_format::{StatusFormatConfig, StatusFormatter};
 
