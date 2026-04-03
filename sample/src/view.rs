@@ -14,6 +14,8 @@ pub fn view(state: &AppState) -> Element<'_, AppMessage> {
         StatusSource::Emit => Color::from_rgb8(0, 255, 0),
         StatusSource::NonEmit => Color::from_rgb8(0, 0, 255),
         StatusSource::Direct => Color::from_rgb8(255, 255, 0),
+        StatusSource::OptionNonEmit => Color::from_rgb8(0, 255, 255),
+        StatusSource::OptionEmitAsync => Color::from_rgb8(255, 0, 255),
     };
 
     let show_status_message = Container::new(
@@ -79,12 +81,40 @@ pub fn view(state: &AppState) -> Element<'_, AppMessage> {
     .align_x(alignment::Horizontal::Center)
     .align_y(alignment::Vertical::Center);
 
+    let button_option_non_emit = Container::new(
+        CustomButton::new("Click me (option non emit)")
+            .text_align_x(alignment::Horizontal::Center)
+            .text_align_y(alignment::Vertical::Center)
+            .width(Length::Fill)
+            .on_press(AppMessage::ButtonOptionNonEmit)
+            .style(custom_btn_style)
+            .view(),
+    )
+    .width(Length::Fill)
+    .align_x(alignment::Horizontal::Center)
+    .align_y(alignment::Vertical::Center);
+
+    let button_option_async_emit = Container::new(
+        CustomButton::new("Click me (option async emit)")
+            .text_align_x(alignment::Horizontal::Center)
+            .text_align_y(alignment::Vertical::Center)
+            .width(Length::Fill)
+            .on_press(AppMessage::ButtonOptionEmitAsync)
+            .style(custom_btn_style)
+            .view(),
+    )
+    .width(Length::Fill)
+    .align_x(alignment::Horizontal::Center)
+    .align_y(alignment::Vertical::Center);
+
     let row_button = Container::new(
         Row::new()
             .push(button_emit_async)
             .push(button_emit)
             .push(button_non_emit)
             .push(button_direct)
+            .push(button_option_non_emit)
+            .push(button_option_async_emit)
             .spacing(10)
             .width(Length::Fill)
             .align_y(alignment::Vertical::Center),

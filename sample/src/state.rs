@@ -6,6 +6,8 @@ pub enum StatusSource {
     Emit,
     NonEmit,
     Direct,
+    OptionNonEmit,
+    OptionEmitAsync,
 }
 
 #[derive(Debug, Clone)]
@@ -15,6 +17,8 @@ pub enum AppMessage {
     ButtonEmit,
     ButtonNonEmit,
     ButtonDirect,
+    ButtonOptionNonEmit,
+    ButtonOptionEmitAsync,
     NoOperations,
 }
 

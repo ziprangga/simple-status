@@ -2,7 +2,10 @@ use iced::Task;
 use simple_status::*;
 
 use crate::state::{AppMessage, AppState, StatusSource};
-use crate::task::{message_emit_async_task, message_emit_task, message_non_emit_task};
+use crate::task::{
+    message_emit_async_task, message_emit_task, message_emit_with_option_task,
+    message_non_emit_task, message_non_emit_with_option_task,
+};
 
 pub fn update(state: &mut AppState, message: AppMessage) -> Task<AppMessage> {
     match message {
@@ -50,6 +53,32 @@ pub fn update(state: &mut AppState, message: AppMessage) -> Task<AppMessage> {
             let status_direct = status!("this is direct message");
             state.show_status = status_direct;
             Task::none()
+        }
+
+        AppMessage::ButtonOptionNonEmit => {
+            state.source = StatusSource::OptionNonEmit;
+            Task::perform(async { message_non_emit_with_option_task().await }, |se| {
+                if let Some(status) = se {
+                    AppMessage::ShowStatus(status)
+                } else {
+                    AppMessage::NoOperations
+                }
+            })
+        }
+
+        AppMessage::ButtonOptionEmitAsync => {
+            state.source = StatusSource::OptionEmitAsync;
+            let (emitter, receiver) = setup_status(10);
+            Task::perform(
+                async move {
+                    message_emit_with_option_task(Some(&emitter)).await;
+                    receiver.try_recv()
+                },
+                |maybe_emit| match maybe_emit {
+                    Some(se) => AppMessage::ShowStatus(se),
+                    None => AppMessage::NoOperations,
+                },
+            )
         }
 
         AppMessage::ShowStatus(se) => {

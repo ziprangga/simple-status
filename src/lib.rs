@@ -92,6 +92,13 @@ macro_rules! status {
 #[macro_export]
 macro_rules! status_emit {
     // async mode
+    (async, Some($emitter:expr), $($arg:tt)+) => {{
+        match $emitter {
+            Some(emitter) => emitter.emit($crate::Status::new($crate::status_event!($($arg)+))).await,
+            None => {},
+         }
+    }};
+
     (async, $emitter:expr, $($arg:tt)+) => {{
         $emitter.emit(
             $crate::Status::new(
@@ -101,6 +108,13 @@ macro_rules! status_emit {
     }};
 
     // sync mode (default)
+    (Some($emitter:expr), $($arg:tt)+) => {{
+        match $emitter {
+            Some(emitter) => emitter.try_emit($crate::Status::new($crate::status_event!($($arg)+))),
+            None => {},
+        }
+    }};
+
     ($emitter:expr, $($arg:tt)+) => {{
         $emitter.try_emit(
             $crate::Status::new(
