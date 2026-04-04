@@ -17,5 +17,10 @@ pub fn message_non_emit_with_option() -> Option<Status> {
 }
 
 pub async fn message_emit_with_option(status: Option<&StatusEmitter>) {
-    status_emit!(async, Some(status), "this is option async emit");
+    // status_emit!(async, Some(status), "this is option async emit");
+    status_emit!(
+        async,
+        Some(status),
+        message: "this is option async emit",
+    );
 }
