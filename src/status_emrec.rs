@@ -7,6 +7,7 @@ use std::sync::Arc;
 pub trait StatusEmitterHandler: Send + Sync {
     fn try_emit(&self, status: Status);
     fn emit(&self, status: Status) -> Pin<Box<dyn Future<Output = ()> + Send + '_>>;
+    fn subscribe(&self) -> Option<Arc<StatusReceiver>>;
 }
 
 // trait for Receiver
@@ -25,12 +26,24 @@ impl StatusEmitter {
         Self { emitter }
     }
 
-    pub fn try_emit(&self, status: Status) {
+    pub fn sync_emit(&self, status: Status) {
         self.emitter.try_emit(status);
     }
 
-    pub async fn emit(&self, status: Status) {
+    pub async fn async_emit(&self, status: Status) {
         self.emitter.emit(status).await;
+    }
+
+    pub fn subscribe(&self) -> Option<Arc<StatusReceiver>> {
+        self.emitter.subscribe()
+    }
+}
+
+impl std::fmt::Debug for StatusEmitter {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("StatusEmitter")
+            .field("emitter", &"<dyn StatusEmitterHandler>")
+            .finish()
     }
 }
 
@@ -44,11 +57,19 @@ impl StatusReceiver {
         Self { receiver }
     }
 
-    pub fn try_recv(&self) -> Option<Status> {
+    pub fn sync_recv(&self) -> Option<Status> {
         self.receiver.try_recv()
     }
 
-    pub async fn recv(&self) -> Option<Status> {
+    pub async fn async_recv(&self) -> Option<Status> {
         self.receiver.recv().await
+    }
+}
+
+impl std::fmt::Debug for StatusReceiver {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("StatusReceiver")
+            .field("receiver", &"<dyn StatusReceiverHandler>")
+            .finish()
     }
 }

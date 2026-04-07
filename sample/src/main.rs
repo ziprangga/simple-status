@@ -1,5 +1,6 @@
 mod button_style;
 mod state;
+mod status_report;
 mod task;
 mod test_msg;
 mod update;
@@ -13,9 +14,10 @@ pub use update::update;
 pub use view::view;
 
 use iced::{Size, Task, application, window};
+use simple_status::ChannelKind;
 
 fn init() -> (AppState, Task<AppMessage>) {
-    let app_state = AppState::new();
+    let app_state = AppState::new(100, ChannelKind::Mpsc);
     (app_state, Task::none())
 }
 

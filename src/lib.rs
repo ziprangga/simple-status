@@ -3,7 +3,9 @@ mod status_emrec;
 mod status_event;
 mod status_format;
 
-pub use status_channel::{ChannelReceiver, ChannelSender};
+pub use status_channel::{
+    ChannelKind, ChannelReceiver, ChannelReceiverBroadcast, ChannelSender, ChannelSenderBroadcast,
+};
 pub use status_emrec::{
     StatusEmitter, StatusEmitterHandler, StatusReceiver, StatusReceiverHandler,
 };
@@ -12,28 +14,110 @@ pub use status_format::{StatusFormatConfig, StatusFormatter};
 
 use std::sync::Arc;
 
-pub fn setup_status(buffer: usize) -> (Arc<StatusEmitter>, Arc<StatusReceiver>) {
-    let (tx, rx) = tokio::sync::mpsc::channel(buffer);
-    let handler = Arc::new(ChannelSender::new(tx));
-    let emitter = Arc::new(StatusEmitter::new(handler));
+pub fn setup_status(
+    buffer: usize,
+    kind: ChannelKind,
+) -> (
+    Arc<StatusEmitter>,
+    Arc<StatusReceiver>,
+    Option<ChannelHandler>,
+) {
+    match kind {
+        ChannelKind::Mpsc => {
+            let (tx, rx) = tokio::sync::mpsc::channel(buffer);
 
-    let channel_receiver = Arc::new(ChannelReceiver::new(rx));
-    let receiver = Arc::new(StatusReceiver::new(channel_receiver));
-    (emitter, receiver)
+            let emitter = Arc::new(StatusEmitter::new(Arc::new(ChannelSender::new(tx))));
+            let receiver = Arc::new(StatusReceiver::new(Arc::new(ChannelReceiver::new(rx))));
+
+            (emitter, receiver, None)
+        }
+
+        ChannelKind::Broadcast => {
+            let (tx, _rx) = tokio::sync::broadcast::channel(buffer);
+
+            let persistent_rx = tx.subscribe();
+            let receiver = Arc::new(StatusReceiver::new(Arc::new(
+                ChannelReceiverBroadcast::new(persistent_rx),
+            )));
+
+            let emitter = Arc::new(StatusEmitter::new(Arc::new(ChannelSenderBroadcast::new(
+                tx.clone(),
+            ))));
+
+            (
+                emitter.clone(),
+                receiver,
+                Some(ChannelHandler::Broadcast(emitter)),
+            )
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub enum ChannelHandler {
+    Mpsc,
+    Broadcast(Arc<StatusEmitter>),
+}
+
+impl ChannelHandler {
+    pub fn subscribe(&self) -> Option<Arc<StatusReceiver>> {
+        match self {
+            ChannelHandler::Broadcast(emitter) => emitter.subscribe(),
+            _ => None,
+        }
+    }
+
+    pub fn is_mpsc(&self) -> bool {
+        matches!(self, ChannelHandler::Mpsc)
+    }
+
+    pub fn is_broadcast(&self) -> bool {
+        matches!(self, ChannelHandler::Broadcast(_))
+    }
 }
 
 #[derive(Debug, Default, Clone)]
 pub struct Status {
     event: StatusEvent,
+    emitter: Option<Arc<StatusEmitter>>,
+    receiver: Option<Arc<StatusReceiver>>,
+    ch_handler: Option<ChannelHandler>,
+    ch_kind: Option<ChannelKind>,
 }
 
 impl Status {
     pub fn new(event: StatusEvent) -> Self {
-        Self { event }
+        Self {
+            event,
+            emitter: None,
+            receiver: None,
+            ch_handler: None,
+            ch_kind: None,
+        }
+    }
+
+    pub fn reset(&mut self) {
+        self.event = StatusEvent::default()
     }
 
     pub fn event(&self) -> &StatusEvent {
         &self.event
+    }
+
+    pub fn emitter(&self) -> Option<Arc<StatusEmitter>> {
+        self.emitter.clone()
+    }
+
+    pub fn receiver(&self) -> Option<Arc<StatusReceiver>> {
+        self.receiver.clone()
+    }
+
+    pub fn ch_handle(&self) -> Option<ChannelHandler> {
+        self.ch_handler.clone()
+    }
+
+    pub fn ch_kind(&self) -> Option<ChannelKind> {
+        self.ch_kind.clone()
     }
 
     pub fn format<F>(&self, f: F) -> String
@@ -136,7 +220,7 @@ macro_rules! status_emit {
         $(path: $path:expr,)?
     ) => {{
         match $emitter {
-            Some(emitter) => emitter.emit($crate::Status::new($crate::status_event!(
+            Some(emitter) => emitter.async_emit($crate::Status::new($crate::status_event!(
                 $(stage: $stage,)?
                 $(current: $current,)?
                 $(total: $total,)?
@@ -154,7 +238,7 @@ macro_rules! status_emit {
         $(message: $message:expr,)?
         $(path: $path:expr,)?
     ) => {{
-       $emitter.emit($crate::Status::new($crate::status_event!(
+       $emitter.async_emit($crate::Status::new($crate::status_event!(
             $(stage: $stage,)?
             $(current: $current,)?
             $(total: $total,)?
@@ -165,13 +249,13 @@ macro_rules! status_emit {
 
     (async, Some($emitter:expr), $($arg:tt)+) => {{
         match $emitter {
-            Some(emitter) => emitter.emit($crate::Status::new($crate::status_event!($($arg)+))).await,
+            Some(emitter) => emitter.async_emit($crate::Status::new($crate::status_event!($($arg)+))).await,
             None => {},
          }
     }};
 
     (async, $emitter:expr, $($arg:tt)+) => {{
-        $emitter.emit(
+        $emitter.async_emit(
             $crate::Status::new(
                 $crate::status_event!($($arg)+)
             )
@@ -187,7 +271,7 @@ macro_rules! status_emit {
         $(path: $path:expr,)?
     ) => {{
         match $emitter {
-            Some(emitter) => emitter.try_emit($crate::Status::new($crate::status_event!(
+            Some(emitter) => emitter.sync_emit($crate::Status::new($crate::status_event!(
                 $(stage: $stage,)?
                 $(current: $current,)?
                 $(total: $total,)?
@@ -205,7 +289,7 @@ macro_rules! status_emit {
         $(message: $message:expr,)?
         $(path: $path:expr,)?
     ) => {{
-       $emitter.try_emit($crate::Status::new($crate::status_event!(
+       $emitter.sync_emit($crate::Status::new($crate::status_event!(
             $(stage: $stage,)?
             $(current: $current,)?
             $(total: $total,)?
@@ -216,13 +300,13 @@ macro_rules! status_emit {
 
     (Some($emitter:expr), $($arg:tt)+) => {{
         match $emitter {
-            Some(emitter) => emitter.try_emit($crate::Status::new($crate::status_event!($($arg)+))),
+            Some(emitter) => emitter.sync_emit($crate::Status::new($crate::status_event!($($arg)+))),
             None => {},
         }
     }};
 
     ($emitter:expr, $($arg:tt)+) => {{
-        $emitter.try_emit(
+        $emitter.sync_emit(
             $crate::Status::new(
                 $crate::status_event!($($arg)+)
             )

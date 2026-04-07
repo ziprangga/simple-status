@@ -1,18 +1,9 @@
-use simple_status::Status;
-
-#[derive(Clone, Copy)]
-pub enum StatusSource {
-    EmitAsync,
-    Emit,
-    NonEmit,
-    Direct,
-    OptionNonEmit,
-    OptionEmitAsync,
-}
+use crate::status_report::StatusReport;
+use simple_status::ChannelKind;
 
 #[derive(Debug, Clone)]
 pub enum AppMessage {
-    ShowStatus(Status),
+    ShowStatus(StatusReport),
     ButtonEmitAsync,
     ButtonEmit,
     ButtonNonEmit,
@@ -22,21 +13,19 @@ pub enum AppMessage {
     NoOperations,
 }
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct AppState {
-    pub show_status: Status,
-    pub source: StatusSource,
+    pub show_status: StatusReport,
 }
 
 impl AppState {
-    pub fn new() -> Self {
+    pub fn new(buffer: usize, kind: ChannelKind) -> Self {
         Self {
-            show_status: Status::default(),
-            source: StatusSource::Direct,
+            show_status: StatusReport::new(buffer, kind),
         }
     }
 
     pub fn reset(&mut self) {
-        self.show_status = Status::default();
+        self.show_status.reset();
     }
 }
