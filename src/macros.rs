@@ -1,18 +1,14 @@
-use crate::StatusEvent;
-
-// =================
-// macros
-// =================
+use crate::Event;
 use std::path::PathBuf;
 
-pub fn build_status_event(
+pub fn build_event(
     stage: Option<String>,
     current: Option<usize>,
     total: Option<usize>,
     message: Option<String>,
     path: Option<PathBuf>,
-) -> StatusEvent {
-    let mut builder = StatusEvent::builder();
+) -> Event {
+    let mut builder = Event::builder();
 
     if let Some(stage) = stage {
         builder = builder.stage(stage);
@@ -34,7 +30,7 @@ pub fn build_status_event(
 }
 
 #[macro_export]
-macro_rules! status_event {
+macro_rules! event {
     (
         $(stage: $stage:expr,)?
         $(current: $current:expr,)?
@@ -43,12 +39,12 @@ macro_rules! status_event {
         $(path: $path:expr,)?
     ) => {{
 
-        $crate::build_status_event(
-            $crate::status_event!(@opt_str $($stage)?),
-            $crate::status_event!(@opt_usize $($current)?),
-            $crate::status_event!(@opt_usize $($total)?),
-            $crate::status_event!(@opt_str $($message)?),
-            $crate::status_event!(@opt_path $($path)?),
+        $crate::build_event(
+            $crate::event!(@opt_str $($stage)?),
+            $crate::event!(@opt_usize $($current)?),
+            $crate::event!(@opt_usize $($total)?),
+            $crate::event!(@opt_str $($message)?),
+            $crate::event!(@opt_path $($path)?),
         )
     }};
 
@@ -60,7 +56,7 @@ macro_rules! status_event {
     (@opt_path) => { None };
 
     ($($arg:tt)+) => {{
-        $crate::build_status_event(None, None, None, Some(format!($($arg)+)), None)
+        $crate::build_event(None, None, None, Some(format!($($arg)+)), None)
     }};
 
 }
@@ -74,7 +70,7 @@ macro_rules! status {
         $(message: $message:expr,)?
         $(path: $path:expr,)?
     ) => {{
-        $crate::status_event!(
+        $crate::event!(
             $(stage: $stage,)?
             $(current: $current,)?
             $(total: $total,)?
@@ -83,13 +79,12 @@ macro_rules! status {
         )
     }};
 
-    ($($arg:tt)+) => {{
-            $crate::status_event!($($arg)+)
+    ($($arg:tt)+) => {{ $crate::Status::new($crate::event!($($arg)+))
     }};
 }
 
 #[macro_export]
-macro_rules! status_emit {
+macro_rules! event_emit {
     // async mode
     (async, Some($emitter:expr),
         $(stage: $stage:expr,)?
@@ -99,7 +94,7 @@ macro_rules! status_emit {
         $(path: $path:expr,)?
     ) => {{
         match $emitter {
-            Some(emitter) => emitter.async_emit($crate::status_event!(
+            Some(emitter) => emitter.async_emit($crate::event!(
                 $(stage: $stage,)?
                 $(current: $current,)?
                 $(total: $total,)?
@@ -117,7 +112,7 @@ macro_rules! status_emit {
         $(message: $message:expr,)?
         $(path: $path:expr,)?
     ) => {{
-       $emitter.async_emit($crate::status_event!(
+       $emitter.async_emit($crate::event!(
             $(stage: $stage,)?
             $(current: $current,)?
             $(total: $total,)?
@@ -128,14 +123,14 @@ macro_rules! status_emit {
 
     (async, Some($emitter:expr), $($arg:tt)+) => {{
         match $emitter {
-            Some(emitter) => emitter.async_emit($crate::status_event!($($arg)+)).await,
+            Some(emitter) => emitter.async_emit($crate::event!($($arg)+)).await,
             None => {},
          }
     }};
 
     (async, $emitter:expr, $($arg:tt)+) => {{
         $emitter.async_emit(
-                $crate::status_event!($($arg)+)
+                $crate::event!($($arg)+)
         ).await;
     }};
 
@@ -148,7 +143,7 @@ macro_rules! status_emit {
         $(path: $path:expr,)?
     ) => {{
         match $emitter {
-            Some(emitter) => emitter.sync_emit($crate::status_event!(
+            Some(emitter) => emitter.sync_emit($crate::event!(
                 $(stage: $stage,)?
                 $(current: $current,)?
                 $(total: $total,)?
@@ -166,7 +161,7 @@ macro_rules! status_emit {
         $(message: $message:expr,)?
         $(path: $path:expr,)?
     ) => {{
-       $emitter.sync_emit($crate::status_event!(
+       $emitter.sync_emit($crate::event!(
             $(stage: $stage,)?
             $(current: $current,)?
             $(total: $total,)?
@@ -177,14 +172,14 @@ macro_rules! status_emit {
 
     (Some($emitter:expr), $($arg:tt)+) => {{
         match $emitter {
-            Some(emitter) => emitter.sync_emit($crate::status_event!($($arg)+)),
+            Some(emitter) => emitter.sync_emit($crate::event!($($arg)+)),
             None => {},
         }
     }};
 
     ($emitter:expr, $($arg:tt)+) => {{
         $emitter.sync_emit(
-                $crate::status_event!($($arg)+)
+                $crate::event!($($arg)+)
         );
     }};
 }

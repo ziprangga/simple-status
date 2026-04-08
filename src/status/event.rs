@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 #[derive(Debug, Default, Clone)]
-pub struct StatusEvent {
+pub struct Event {
     stage: Option<String>,
     current: Option<usize>,
     total: Option<usize>,
@@ -9,9 +9,9 @@ pub struct StatusEvent {
     path: Option<PathBuf>,
 }
 
-impl StatusEvent {
-    pub fn builder() -> StatusEventBuilder {
-        StatusEventBuilder::new()
+impl Event {
+    pub fn builder() -> EventBuilder {
+        EventBuilder::new()
     }
 
     pub fn stage(&self) -> Option<&str> {
@@ -36,14 +36,14 @@ impl StatusEvent {
 }
 
 #[derive(Debug, Clone)]
-pub struct StatusEventBuilder {
-    status_event: StatusEvent,
+pub struct EventBuilder {
+    status_event: Event,
 }
 
-impl StatusEventBuilder {
+impl EventBuilder {
     pub fn new() -> Self {
         Self {
-            status_event: StatusEvent::default(),
+            status_event: Event::default(),
         }
     }
 
@@ -72,7 +72,7 @@ impl StatusEventBuilder {
         self
     }
 
-    pub fn build(self) -> StatusEvent {
+    pub fn build(self) -> Event {
         self.status_event
     }
 }

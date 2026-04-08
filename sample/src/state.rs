@@ -1,4 +1,4 @@
-use simple_status::{ChannelKind, Status, setup_handler};
+use simple_status::{Channel, ChannelKind, Status, init_channel};
 
 #[derive(Debug, Clone, Copy, Default)]
 pub enum StatusSource {
@@ -27,20 +27,22 @@ pub enum AppMessage {
 pub struct AppState {
     pub show_status: Status,
     pub source: StatusSource,
+    pub channel: Channel,
 }
 
 impl AppState {
     pub fn new(buffer: usize, kind: ChannelKind) -> Self {
-        let status_handler = setup_handler(buffer, kind);
+        let channel = init_channel(buffer, kind);
 
         Self {
-            show_status: Status::new_handler(status_handler),
+            show_status: Status::default(),
             source: StatusSource::default(),
+            channel: channel,
         }
     }
 
     pub fn reset(&mut self) {
-        self.show_status.reset_status_event();
+        self.show_status.reset_event();
         self.source = StatusSource::default();
     }
 }

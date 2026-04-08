@@ -1,24 +1,24 @@
-use crate::status_event::StatusEvent;
+use crate::status::Event;
 
-pub trait StatusFormatter {
-    fn format(&self, event: &StatusEvent) -> String;
+pub trait EventFormatter {
+    fn format(&self, event: &Event) -> String;
 }
 
-impl<F> StatusFormatter for F
+impl<F> EventFormatter for F
 where
-    F: Fn(&StatusEvent) -> String,
+    F: Fn(&Event) -> String,
 {
-    fn format(&self, event: &StatusEvent) -> String {
+    fn format(&self, event: &Event) -> String {
         (self)(event)
     }
 }
 
-pub struct StatusFormatConfig {
-    pub field: Vec<Box<dyn Fn(&StatusEvent) -> Option<String>>>,
+pub struct EventFormatConfig {
+    pub field: Vec<Box<dyn Fn(&Event) -> Option<String>>>,
     pub separator: Option<String>,
 }
 
-impl StatusFormatConfig {
+impl EventFormatConfig {
     pub fn new() -> Self {
         Self {
             field: Vec::new(),
@@ -28,33 +28,33 @@ impl StatusFormatConfig {
 
     fn parts<F>(&mut self, f: F)
     where
-        F: 'static + Fn(&StatusEvent) -> Option<String>,
+        F: 'static + Fn(&Event) -> Option<String>,
     {
         self.field.push(Box::new(f));
     }
 
     pub fn stage<F: 'static + Fn(&str) -> String>(&mut self, fmt: F) -> &mut Self {
-        self.parts(move |s: &StatusEvent| s.stage().map(|v| fmt(v)));
+        self.parts(move |s: &Event| s.stage().map(|v| fmt(v)));
         self
     }
 
     pub fn current<F: 'static + Fn(usize) -> String>(&mut self, fmt: F) -> &mut Self {
-        self.parts(move |s: &StatusEvent| s.current().map(|v| fmt(v)));
+        self.parts(move |s: &Event| s.current().map(|v| fmt(v)));
         self
     }
 
     pub fn total<F: 'static + Fn(usize) -> String>(&mut self, fmt: F) -> &mut Self {
-        self.parts(move |s: &StatusEvent| s.total().map(|v| fmt(v)));
+        self.parts(move |s: &Event| s.total().map(|v| fmt(v)));
         self
     }
 
     pub fn message<F: 'static + Fn(&str) -> String>(&mut self, fmt: F) -> &mut Self {
-        self.parts(move |s: &StatusEvent| s.message().map(|v| fmt(v)));
+        self.parts(move |s: &Event| s.message().map(|v| fmt(v)));
         self
     }
 
     pub fn path<F: 'static + Fn(&std::path::Path) -> String>(&mut self, fmt: F) -> &mut Self {
-        self.parts(move |s: &StatusEvent| s.path().map(|v| fmt(v)));
+        self.parts(move |s: &Event| s.path().map(|v| fmt(v)));
         self
     }
 
@@ -63,8 +63,8 @@ impl StatusFormatConfig {
         self
     }
 
-    pub fn write(&self, status: &StatusEvent) -> String {
-        let field: Vec<String> = self.field.iter().filter_map(|f| f(status)).collect();
+    pub fn write(&self, event: &Event) -> String {
+        let field: Vec<String> = self.field.iter().filter_map(|f| f(event)).collect();
         match &self.separator {
             Some(sep) => field.join(sep),
             None => field.concat(),
@@ -72,9 +72,9 @@ impl StatusFormatConfig {
     }
 }
 
-impl Default for StatusFormatConfig {
+impl Default for EventFormatConfig {
     fn default() -> Self {
-        let mut cfg = StatusFormatConfig::new();
+        let mut cfg = EventFormatConfig::new();
         cfg.stage(|v| v.to_string());
         cfg.current(|v| v.to_string());
         cfg.total(|v| v.to_string());
@@ -85,8 +85,8 @@ impl Default for StatusFormatConfig {
     }
 }
 
-impl StatusFormatter for StatusFormatConfig {
-    fn format(&self, event: &StatusEvent) -> String {
+impl EventFormatter for EventFormatConfig {
+    fn format(&self, event: &Event) -> String {
         self.write(event)
     }
 }

@@ -5,18 +5,18 @@ use tokio::sync::broadcast;
 use tokio::sync::mpsc;
 
 use super::ChannelKind;
-use crate::emitter_receiver::StatusReceiverHandler;
-use crate::status_event::StatusEvent;
+use super::ReceiverHandler;
+use crate::status::Event;
 
 #[derive(Debug)]
 pub struct ChannelReceiver {
     kind: ChannelKind,
-    mpsc_receiver: Option<Mutex<mpsc::Receiver<StatusEvent>>>,
-    broadcast_receiver: Option<Mutex<broadcast::Receiver<StatusEvent>>>,
+    mpsc_receiver: Option<Mutex<mpsc::Receiver<Event>>>,
+    broadcast_receiver: Option<Mutex<broadcast::Receiver<Event>>>,
 }
 
 impl ChannelReceiver {
-    pub fn new_mpsc(rx: mpsc::Receiver<StatusEvent>) -> Self {
+    pub fn new_mpsc(rx: mpsc::Receiver<Event>) -> Self {
         Self {
             kind: ChannelKind::Mpsc,
             mpsc_receiver: Some(Mutex::new(rx)),
@@ -24,7 +24,7 @@ impl ChannelReceiver {
         }
     }
 
-    pub fn new_broadcast(rx: broadcast::Receiver<StatusEvent>) -> Self {
+    pub fn new_broadcast(rx: broadcast::Receiver<Event>) -> Self {
         Self {
             kind: ChannelKind::Broadcast,
             mpsc_receiver: None,
@@ -32,7 +32,7 @@ impl ChannelReceiver {
         }
     }
 
-    fn try_recv_event(&self) -> Option<StatusEvent> {
+    fn try_recv_event(&self) -> Option<Event> {
         match self.kind {
             ChannelKind::Mpsc => {
                 if let Some(rx) = &self.mpsc_receiver {
@@ -54,12 +54,12 @@ impl ChannelReceiver {
     }
 }
 
-impl StatusReceiverHandler for ChannelReceiver {
-    fn try_recv(&self) -> Option<StatusEvent> {
+impl ReceiverHandler for ChannelReceiver {
+    fn try_recv(&self) -> Option<Event> {
         self.try_recv_event()
     }
 
-    fn recv(&self) -> Pin<Box<dyn Future<Output = Option<StatusEvent>> + Send + '_>> {
+    fn recv(&self) -> Pin<Box<dyn Future<Output = Option<Event>> + Send + '_>> {
         Box::pin(async move {
             match self.kind {
                 ChannelKind::Mpsc => {
