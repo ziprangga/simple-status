@@ -1,7 +1,7 @@
-use simple_status::{Status, StatusEmitter};
+use simple_status::{StatusEmitter, StatusEvent};
 
 use crate::test_msg::*;
-pub async fn message_non_emit_task() -> Status {
+pub async fn message_non_emit_task() -> StatusEvent {
     message_non_emit()
 }
 
@@ -13,7 +13,7 @@ pub async fn message_emit_async_task(status: &StatusEmitter) {
     message_emit_async(status).await;
 }
 
-pub async fn message_non_emit_with_option_task() -> Option<Status> {
+pub async fn message_non_emit_with_option_task() -> Option<StatusEvent> {
     message_non_emit_with_option()
 }
 

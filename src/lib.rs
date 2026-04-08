@@ -1,20 +1,22 @@
 mod status_channel;
-mod status_emrec;
+mod status_emitter;
 mod status_event;
 mod status_format;
+mod status_receiver;
 
-pub use status_channel::{
-    ChannelKind, ChannelReceiver, ChannelReceiverBroadcast, ChannelSender, ChannelSenderBroadcast,
-};
-pub use status_emrec::{
-    StatusEmitter, StatusEmitterHandler, StatusReceiver, StatusReceiverHandler,
-};
+#[macro_use]
+mod status_macro;
+pub use status_macro::*;
+
+pub use status_channel::*;
+pub use status_emitter::{StatusEmitter, StatusEmitterHandler};
 pub use status_event::StatusEvent;
 pub use status_format::{StatusFormatConfig, StatusFormatter};
+pub use status_receiver::{StatusReceiver, StatusReceiverHandler};
 
 use std::sync::Arc;
 
-pub fn setup_status(
+fn create_channel(
     buffer: usize,
     kind: ChannelKind,
 ) -> (
@@ -53,55 +55,42 @@ pub fn setup_status(
     }
 }
 
-#[derive(Debug, Clone)]
-pub enum ChannelHandler {
-    Mpsc,
-    Broadcast(Arc<StatusEmitter>),
+pub fn setup_handler(buffer: usize, kind: ChannelKind) -> StatusHandler {
+    let (emitter, receiver, handler) = create_channel(buffer, kind);
+
+    let status_handler = StatusHandler {
+        emitter: Some(emitter),
+        receiver: Some(receiver),
+        handler,
+    };
+    status_handler
 }
 
-impl ChannelHandler {
-    pub fn subscribe(&self) -> Option<Arc<StatusReceiver>> {
-        match self {
-            ChannelHandler::Broadcast(emitter) => emitter.subscribe(),
-            _ => None,
-        }
-    }
-
-    pub fn is_mpsc(&self) -> bool {
-        matches!(self, ChannelHandler::Mpsc)
-    }
-
-    pub fn is_broadcast(&self) -> bool {
-        matches!(self, ChannelHandler::Broadcast(_))
-    }
-}
-
-#[derive(Debug, Default, Clone)]
-pub struct Status {
-    event: StatusEvent,
+#[derive(Debug, Clone, Default)]
+pub struct StatusHandler {
     emitter: Option<Arc<StatusEmitter>>,
     receiver: Option<Arc<StatusReceiver>>,
-    ch_handler: Option<ChannelHandler>,
-    ch_kind: Option<ChannelKind>,
+    handler: Option<ChannelHandler>,
 }
 
-impl Status {
-    pub fn new(event: StatusEvent) -> Self {
-        Self {
-            event,
-            emitter: None,
-            receiver: None,
-            ch_handler: None,
-            ch_kind: None,
+impl StatusHandler {
+    pub async fn recv_async(&self) -> StatusEvent {
+        if let Some(receiver) = &self.receiver {
+            receiver.async_recv().await.unwrap_or_default()
+        } else {
+            StatusEvent::default()
         }
     }
 
-    pub fn reset(&mut self) {
-        self.event = StatusEvent::default()
+    pub fn recv_sync(&self) -> StatusEvent {
+        self.receiver
+            .as_ref()
+            .and_then(|r| r.sync_recv())
+            .unwrap_or_default()
     }
 
-    pub fn event(&self) -> &StatusEvent {
-        &self.event
+    pub fn new_subscriber(&self) -> Option<Arc<StatusReceiver>> {
+        self.handler.as_ref()?.subscribe()
     }
 
     pub fn emitter(&self) -> Option<Arc<StatusEmitter>> {
@@ -112,19 +101,90 @@ impl Status {
         self.receiver.clone()
     }
 
-    pub fn ch_handle(&self) -> Option<ChannelHandler> {
-        self.ch_handler.clone()
+    pub fn handler(&self) -> Option<ChannelHandler> {
+        self.handler.clone()
     }
 
-    pub fn ch_kind(&self) -> Option<ChannelKind> {
-        self.ch_kind.clone()
+    pub fn set_emitter(&mut self, emitter: Option<Arc<StatusEmitter>>) {
+        self.emitter = emitter;
+    }
+
+    pub fn set_receiver(&mut self, receiver: Option<Arc<StatusReceiver>>) {
+        self.receiver = receiver;
+    }
+
+    pub fn set_handler(&mut self, handler: Option<ChannelHandler>) {
+        self.handler = handler;
+    }
+}
+
+#[derive(Debug, Default, Clone)]
+pub struct Status {
+    status_event: StatusEvent,
+    status_handler: StatusHandler,
+}
+
+impl Status {
+    pub fn new(event: StatusEvent, handler: StatusHandler) -> Self {
+        Self {
+            status_event: event,
+            status_handler: handler,
+        }
+    }
+
+    pub fn new_handler(handler: StatusHandler) -> Self {
+        Self {
+            status_event: StatusEvent::default(),
+            status_handler: handler,
+        }
+    }
+
+    pub fn reset_status_event(&mut self) {
+        self.status_event = StatusEvent::default();
+    }
+
+    pub fn status_handler(&self) -> &StatusHandler {
+        &self.status_handler
+    }
+
+    pub fn status_handler_mut(&mut self) -> &mut StatusHandler {
+        &mut self.status_handler
+    }
+
+    pub fn status_event(&self) -> &StatusEvent {
+        &self.status_event
+    }
+
+    pub fn status_event_mut(&mut self) -> &mut StatusEvent {
+        &mut self.status_event
+    }
+
+    pub fn set_status_event(&mut self, event: StatusEvent) {
+        self.status_event = event;
+    }
+
+    pub fn set_status_handler(
+        &mut self,
+        emitter: Option<Arc<StatusEmitter>>,
+        receiver: Option<Arc<StatusReceiver>>,
+        handler: Option<ChannelHandler>,
+    ) {
+        if let Some(emitter) = emitter {
+            self.status_handler.set_emitter(Some(emitter));
+        }
+        if let Some(receiver) = receiver {
+            self.status_handler.set_receiver(Some(receiver));
+        }
+        if let Some(handler) = handler {
+            self.status_handler.set_handler(Some(handler));
+        }
     }
 
     pub fn format<F>(&self, f: F) -> String
     where
         F: StatusFormatter,
     {
-        f.format(&self.event)
+        f.format(&self.status_event)
     }
 }
 
@@ -133,183 +193,4 @@ impl std::fmt::Display for Status {
         let cfg = StatusFormatConfig::default();
         write!(f, "{}", self.format(cfg))
     }
-}
-
-// =================
-// macros
-// =================
-use std::path::PathBuf;
-
-pub fn build_status_event(
-    stage: Option<String>,
-    current: Option<usize>,
-    total: Option<usize>,
-    message: Option<String>,
-    path: Option<PathBuf>,
-) -> StatusEvent {
-    let mut builder = StatusEvent::builder();
-
-    if let Some(stage) = stage {
-        builder = builder.stage(stage);
-    }
-    if let Some(current) = current {
-        builder = builder.current(current);
-    }
-    if let Some(total) = total {
-        builder = builder.total(total);
-    }
-    if let Some(message) = message {
-        builder = builder.message(message);
-    }
-    if let Some(path) = path {
-        builder = builder.path(path);
-    }
-
-    builder.build()
-}
-
-#[macro_export]
-macro_rules! status_event {
-    (
-        $(stage: $stage:expr,)?
-        $(current: $current:expr,)?
-        $(total: $total:expr,)?
-        $(message: $message:expr,)?
-        $(path: $path:expr,)?
-    ) => {{
-
-        $crate::build_status_event(
-            $crate::status_event!(@opt_str $($stage)?),
-            $crate::status_event!(@opt_usize $($current)?),
-            $crate::status_event!(@opt_usize $($total)?),
-            $crate::status_event!(@opt_str $($message)?),
-            $crate::status_event!(@opt_path $($path)?),
-        )
-    }};
-
-    (@opt_str $value:expr) => { Some($value.into()) };
-    (@opt_str) => { None };
-    (@opt_usize $value:expr) => { Some($value) };
-    (@opt_usize) => { None };
-    (@opt_path $value:expr) => { Some($value) };
-    (@opt_path) => { None };
-
-    ($($arg:tt)+) => {{
-        $crate::build_status_event(None, None, None, Some(format!($($arg)+)), None)
-    }};
-
-}
-
-#[macro_export]
-macro_rules! status {
-    ($($arg:tt)+) => {{
-        $crate::Status::new(
-            $crate::status_event!($($arg)+)
-        )
-    }};
-}
-
-#[macro_export]
-macro_rules! status_emit {
-    // async mode
-    (async, Some($emitter:expr),
-        $(stage: $stage:expr,)?
-        $(current: $current:expr,)?
-        $(total: $total:expr,)?
-        $(message: $message:expr,)?
-        $(path: $path:expr,)?
-    ) => {{
-        match $emitter {
-            Some(emitter) => emitter.async_emit($crate::Status::new($crate::status_event!(
-                $(stage: $stage,)?
-                $(current: $current,)?
-                $(total: $total,)?
-                $(message: $message,)?
-                $(path: $path,)?
-            ))).await,
-            None => {}
-        }
-    }};
-
-    (async, $emitter:expr,
-        $(stage: $stage:expr,)?
-        $(current: $current:expr,)?
-        $(total: $total:expr,)?
-        $(message: $message:expr,)?
-        $(path: $path:expr,)?
-    ) => {{
-       $emitter.async_emit($crate::Status::new($crate::status_event!(
-            $(stage: $stage,)?
-            $(current: $current,)?
-            $(total: $total,)?
-            $(message: $message,)?
-            $(path: $path,)?
-        ))).await
-    }};
-
-    (async, Some($emitter:expr), $($arg:tt)+) => {{
-        match $emitter {
-            Some(emitter) => emitter.async_emit($crate::Status::new($crate::status_event!($($arg)+))).await,
-            None => {},
-         }
-    }};
-
-    (async, $emitter:expr, $($arg:tt)+) => {{
-        $emitter.async_emit(
-            $crate::Status::new(
-                $crate::status_event!($($arg)+)
-            )
-        ).await;
-    }};
-
-    // sync mode (default)
-    (Some($emitter:expr),
-        $(stage: $stage:expr,)?
-        $(current: $current:expr,)?
-        $(total: $total:expr,)?
-        $(message: $message:expr,)?
-        $(path: $path:expr,)?
-    ) => {{
-        match $emitter {
-            Some(emitter) => emitter.sync_emit($crate::Status::new($crate::status_event!(
-                $(stage: $stage,)?
-                $(current: $current,)?
-                $(total: $total,)?
-                $(message: $message,)?
-                $(path: $path,)?
-            ))),
-            None => {}
-        }
-    }};
-
-    ($emitter:expr,
-        $(stage: $stage:expr,)?
-        $(current: $current:expr,)?
-        $(total: $total:expr,)?
-        $(message: $message:expr,)?
-        $(path: $path:expr,)?
-    ) => {{
-       $emitter.sync_emit($crate::Status::new($crate::status_event!(
-            $(stage: $stage,)?
-            $(current: $current,)?
-            $(total: $total,)?
-            $(message: $message,)?
-            $(path: $path,)?
-        )))
-    }};
-
-    (Some($emitter:expr), $($arg:tt)+) => {{
-        match $emitter {
-            Some(emitter) => emitter.sync_emit($crate::Status::new($crate::status_event!($($arg)+))),
-            None => {},
-        }
-    }};
-
-    ($emitter:expr, $($arg:tt)+) => {{
-        $emitter.sync_emit(
-            $crate::Status::new(
-                $crate::status_event!($($arg)+)
-            )
-        );
-    }};
 }

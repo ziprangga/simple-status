@@ -6,11 +6,10 @@ use iced::{
 use iced::{Element, Length};
 
 use crate::button_style::*;
-use crate::state::{AppMessage, AppState};
-use crate::status_report::StatusSource;
+use crate::state::{AppMessage, AppState, StatusSource};
 
 pub fn view(state: &AppState) -> Element<'_, AppMessage> {
-    let color = match state.show_status.source {
+    let color = match state.source {
         StatusSource::EmitAsync => Color::from_rgb8(255, 0, 0),
         StatusSource::Emit => Color::from_rgb8(0, 255, 0),
         StatusSource::NonEmit => Color::from_rgb8(0, 0, 255),
@@ -20,7 +19,7 @@ pub fn view(state: &AppState) -> Element<'_, AppMessage> {
     };
 
     let show_status_message = Container::new(
-        text(state.show_status.status_event.to_string())
+        text(state.show_status.to_string())
             .size(12)
             .width(Length::Fill)
             .center()
