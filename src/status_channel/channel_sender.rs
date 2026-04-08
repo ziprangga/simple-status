@@ -4,23 +4,49 @@ use std::sync::Arc;
 use tokio::sync::broadcast;
 use tokio::sync::mpsc;
 
-use crate::ChannelReceiverBroadcast;
-use crate::StatusEmitterHandler;
-use crate::StatusEvent;
-use crate::StatusReceiver;
+use super::ChannelKind;
+use super::ChannelReceiver;
+use crate::emitter_receiver::StatusEmitterHandler;
+use crate::emitter_receiver::StatusReceiver;
+use crate::status_event::StatusEvent;
 
 #[derive(Debug, Clone)]
 pub struct ChannelSender {
-    channel_sender: mpsc::Sender<StatusEvent>,
+    kind: ChannelKind,
+    mpsc_sender: Option<mpsc::Sender<StatusEvent>>,
+    broadcast_sender: Option<broadcast::Sender<StatusEvent>>,
 }
 
 impl ChannelSender {
-    pub fn new(channel_sender: mpsc::Sender<StatusEvent>) -> Self {
-        Self { channel_sender }
+    pub fn new_mpsc(sender: mpsc::Sender<StatusEvent>) -> Self {
+        Self {
+            kind: ChannelKind::Mpsc,
+            mpsc_sender: Some(sender),
+            broadcast_sender: None,
+        }
+    }
+
+    pub fn new_broadcast(sender: broadcast::Sender<StatusEvent>) -> Self {
+        Self {
+            kind: ChannelKind::Broadcast,
+            mpsc_sender: None,
+            broadcast_sender: Some(sender),
+        }
     }
 
     fn send_event(&self, event: StatusEvent) {
-        let _ = self.channel_sender.try_send(event);
+        match self.kind {
+            ChannelKind::Mpsc => {
+                if let Some(sender) = &self.mpsc_sender {
+                    let _ = sender.try_send(event);
+                }
+            }
+            ChannelKind::Broadcast => {
+                if let Some(sender) = &self.broadcast_sender {
+                    let _ = sender.send(event);
+                }
+            }
+        }
     }
 }
 
@@ -31,41 +57,35 @@ impl StatusEmitterHandler for ChannelSender {
 
     fn emit(&self, status: StatusEvent) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
         Box::pin(async move {
-            let _ = self.channel_sender.send(status).await;
+            match self.kind {
+                ChannelKind::Mpsc => {
+                    if let Some(sender) = &self.mpsc_sender {
+                        let _ = sender.send(status).await;
+                    }
+                }
+                ChannelKind::Broadcast => {
+                    if let Some(sender) = &self.broadcast_sender {
+                        let _ = sender.send(status);
+                    }
+                }
+            }
         })
     }
 
     fn subscribe(&self) -> Option<Arc<StatusReceiver>> {
-        None
-    }
-}
-
-#[derive(Debug, Clone)]
-pub struct ChannelSenderBroadcast {
-    channel_sender: broadcast::Sender<StatusEvent>,
-}
-
-impl ChannelSenderBroadcast {
-    pub fn new(channel_sender: broadcast::Sender<StatusEvent>) -> Self {
-        Self { channel_sender }
-    }
-}
-
-impl StatusEmitterHandler for ChannelSenderBroadcast {
-    fn try_emit(&self, status: StatusEvent) {
-        let _ = self.channel_sender.send(status);
-    }
-
-    fn emit(&self, status: StatusEvent) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
-        Box::pin(async move {
-            let _ = self.channel_sender.send(status);
-        })
-    }
-
-    fn subscribe(&self) -> Option<Arc<StatusReceiver>> {
-        let rx = self.channel_sender.subscribe();
-        Some(Arc::new(StatusReceiver::new(Arc::new(
-            ChannelReceiverBroadcast::new(rx),
-        ))))
+        match self.kind {
+            ChannelKind::Mpsc => None,
+            ChannelKind::Broadcast => {
+                if let Some(sender) = &self.broadcast_sender {
+                    // Subscribe to broadcast channel
+                    let rx = sender.subscribe();
+                    // Wrap in unified ChannelReceiver
+                    let receiver = ChannelReceiver::new_broadcast(rx);
+                    Some(Arc::new(StatusReceiver::new(Arc::new(receiver))))
+                } else {
+                    None
+                }
+            }
+        }
     }
 }

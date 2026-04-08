@@ -1,13 +1,8 @@
 mod channel_receiver;
 mod channel_sender;
 
-pub use channel_receiver::{ChannelReceiver, ChannelReceiverBroadcast};
-pub use channel_sender::{ChannelSender, ChannelSenderBroadcast};
-
-use std::sync::Arc;
-
-use crate::StatusEmitter;
-use crate::StatusReceiver;
+pub use channel_receiver::ChannelReceiver;
+pub use channel_sender::ChannelSender;
 
 #[derive(Debug, Clone)]
 pub enum ChannelKind {
@@ -24,28 +19,5 @@ impl std::str::FromStr for ChannelKind {
             "broadcast" => Ok(Self::Broadcast),
             _ => Err(()),
         }
-    }
-}
-
-#[derive(Debug, Clone)]
-pub enum ChannelHandler {
-    Mpsc,
-    Broadcast(Arc<StatusEmitter>),
-}
-
-impl ChannelHandler {
-    pub fn subscribe(&self) -> Option<Arc<StatusReceiver>> {
-        match self {
-            ChannelHandler::Broadcast(emitter) => emitter.subscribe(),
-            _ => None,
-        }
-    }
-
-    pub fn is_mpsc(&self) -> bool {
-        matches!(self, ChannelHandler::Mpsc)
-    }
-
-    pub fn is_broadcast(&self) -> bool {
-        matches!(self, ChannelHandler::Broadcast(_))
     }
 }

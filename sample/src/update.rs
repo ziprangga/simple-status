@@ -15,9 +15,9 @@ pub fn update(state: &mut AppState, message: AppMessage) -> Task<AppMessage> {
 
             Task::perform(
                 async move {
-                    if let Some(emitter) = &report_status.status_handler().emitter() {
+                    if let Some(emitter) = &report_status.channel_handler().emitter() {
                         message_emit_async_task(emitter).await;
-                        let status = report_status.status_handler().recv_async().await;
+                        let status = report_status.channel_handler().recv_async().await;
                         report_status.set_status_event(status)
                     } else {
                         report_status.set_status_event(StatusEvent::default());
@@ -34,9 +34,9 @@ pub fn update(state: &mut AppState, message: AppMessage) -> Task<AppMessage> {
 
             Task::perform(
                 async move {
-                    if let Some(emitter) = &report_status.status_handler().emitter() {
+                    if let Some(emitter) = &report_status.channel_handler().emitter() {
                         message_emit_task(emitter).await;
-                        let status = report_status.status_handler().recv_async().await;
+                        let status = report_status.channel_handler().recv_async().await;
                         report_status.set_status_event(status)
                     } else {
                         report_status.set_status_event(StatusEvent::default());
@@ -87,9 +87,9 @@ pub fn update(state: &mut AppState, message: AppMessage) -> Task<AppMessage> {
 
             Task::perform(
                 async move {
-                    if let Some(emitter) = &report_status.status_handler().emitter() {
+                    if let Some(emitter) = &report_status.channel_handler().emitter() {
                         message_emit_with_option_task(Some(&emitter)).await;
-                        let status = report_status.status_handler().recv_async().await;
+                        let status = report_status.channel_handler().recv_async().await;
                         report_status.set_status_event(status)
                     } else {
                         report_status.set_status_event(StatusEvent::default());
