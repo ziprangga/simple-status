@@ -120,14 +120,6 @@ impl Status {
         self.status_event = StatusEvent::default();
     }
 
-    pub fn channel_handler(&self) -> &ChannelHandler {
-        &self.channel_handler
-    }
-
-    pub fn channel_handler_mut(&mut self) -> &mut ChannelHandler {
-        &mut self.channel_handler
-    }
-
     pub fn status_event(&self) -> &StatusEvent {
         &self.status_event
     }
@@ -138,6 +130,14 @@ impl Status {
 
     pub fn set_status_event(&mut self, event: StatusEvent) {
         self.status_event = event;
+    }
+
+    pub fn channel_handler(&self) -> &ChannelHandler {
+        &self.channel_handler
+    }
+
+    pub fn channel_handler_mut(&mut self) -> &mut ChannelHandler {
+        &mut self.channel_handler
     }
 
     pub fn set_channel_handler(
