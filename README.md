@@ -4,12 +4,13 @@ A **lightweight Rust crate** for emitting and tracking status events in asynchro
 
 ## Features
 
-* Asynchronous status event handling using `StatusReceiver`.
+* Asynchronous and synchronous status event handling using `Emitter` and `Receiver`.
 * Progress tracking with `stage`, `current`, and `total`.
-* Custom messages with optional path and separator.
-* Simple macros for emitting status events (`status!` and `status_emit!`).
-* Thread-safe global emitter using `OnceLock<Arc<StatusEmitter>>`.
-* Works out of the box in `iced` without requiring Tokio in your dependencies.
+* Custom messages with optional file paths.
+* Simple macros for building and emitting status events: `status!` and `status_emit!`.
+* Supports multiple channel types: `Mpsc` and `Broadcast`.
+* Thread-safe, `Arc`-wrapped channels for safe multi-threaded usage.
+* Works with `iced` or any async runtime (e.g., Tokio).
 
 ## Installation
 
@@ -26,20 +27,23 @@ iced = { version = "0.12", features = ["tokio"] }  # optional if using iced
 ### Initialize the global status emitter (example using iced gui)
 
 ```rust
-use simple_status::setup_status;
-use iced::Task;
+use simple_status::{init_channels, ChannelKind};
 
-let mut rx = setup_status(10);
+let channels = init_channels(10, ChannelKind::Broadcast);
+let emitter = channels.emitter();   // Arc<Emitter>
+let receiver = channels.receiver(); // Arc<Receiver>
+```
 
-// Task to listen for status events
-let emit_task = Task::perform(
-    async move {
-        while let Some(se) = rx.recv().await {
-            se // handle StatusEvent
-        }
-    },
-    |se| AppMessage::StatusEmit(se),
-);
+### Receiving events asynchronously
+
+```rust
+use simple_status::Status;
+
+async fn listen(receiver: Arc<simple_status::Receiver>) {
+    while let Some(status) = receiver.async_recv().await {
+        println!("{}", status); // handle Status
+    }
+}
 ```
 
 ### Emit a status event
@@ -47,7 +51,7 @@ let emit_task = Task::perform(
 ```rust
 use simple_status::{status, status_emit};
 
-// Using macro to build a custom event
+// Using the builder-style macro
 let event = status!(
     stage: "Downloading",
     current: 3,
@@ -55,27 +59,36 @@ let event = status!(
     message: "Downloading file 3 of 10",
 );
 
-// Emit the event globally
-status_emit!(stage: "Downloading", current: 3, total: 10, message: "Downloading file 3 of 10");
+// Emit asynchronously (await required)
+status_emit!(async, emitter.as_ref(), stage: "Downloading", current: 3, total: 10, message: "Downloading file 3 of 10");
 
-// Simple message
-status_emit!("All tasks completed!");
+// Emit synchronously
+status_emit!(emitter.as_ref(), "All tasks completed!");
 ```
 
-### StatusEvent Builder
-
-All fields are optional:
+### Build custom status
 
 ```rust
-use simple_status::StatusEvent;
+use simple_status::{build_status, Status};
+use std::path::PathBuf;
 
-let event = StatusEvent::new()
-    .with_stage("Processing")
-    .with_current(2)
-    .with_total(5)
-    .with_message("Step 2 of 5")
-    .with_path("/tmp/output")
-    .with_separator("->");
+let status: Status = build_status(
+    Some("Processing".into()),
+    Some(2),
+    Some(5),
+    Some("Step 2 of 5".into()),
+    Some(PathBuf::from("/tmp/output")),
+);
+```
+
+### Channels API
+
+* `Emitter` – used to send status events asynchronously or synchronously.
+* `Receiver` – used to receive status events asynchronously or synchronously.
+* `Channels` – holds both emitter and receiver and allows creating new subscribers for broadcast channels.
+
+```rust
+let new_sub = channels.new_subscriber(); // Option<Arc<Receiver>>
 ```
 
 ## License
