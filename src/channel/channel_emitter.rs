@@ -8,17 +8,17 @@ use super::ChannelKind;
 use super::ChannelReceiver;
 use super::EmitterHandler;
 use super::Receiver;
-use crate::status::Event;
+use crate::status::Status;
 
 #[derive(Debug, Clone)]
 pub struct ChannelEmitter {
     kind: ChannelKind,
-    mpsc_sender: Option<mpsc::Sender<Event>>,
-    broadcast_sender: Option<broadcast::Sender<Event>>,
+    mpsc_sender: Option<mpsc::Sender<Status>>,
+    broadcast_sender: Option<broadcast::Sender<Status>>,
 }
 
 impl ChannelEmitter {
-    pub fn new_mpsc(sender: mpsc::Sender<Event>) -> Self {
+    pub fn new_mpsc(sender: mpsc::Sender<Status>) -> Self {
         Self {
             kind: ChannelKind::Mpsc,
             mpsc_sender: Some(sender),
@@ -26,7 +26,7 @@ impl ChannelEmitter {
         }
     }
 
-    pub fn new_broadcast(sender: broadcast::Sender<Event>) -> Self {
+    pub fn new_broadcast(sender: broadcast::Sender<Status>) -> Self {
         Self {
             kind: ChannelKind::Broadcast,
             mpsc_sender: None,
@@ -34,16 +34,16 @@ impl ChannelEmitter {
         }
     }
 
-    fn send_event(&self, event: Event) {
+    fn send_status(&self, status: Status) {
         match self.kind {
             ChannelKind::Mpsc => {
                 if let Some(sender) = &self.mpsc_sender {
-                    let _ = sender.try_send(event);
+                    let _ = sender.try_send(status);
                 }
             }
             ChannelKind::Broadcast => {
                 if let Some(sender) = &self.broadcast_sender {
-                    let _ = sender.send(event);
+                    let _ = sender.send(status);
                 }
             }
         }
@@ -51,11 +51,11 @@ impl ChannelEmitter {
 }
 
 impl EmitterHandler for ChannelEmitter {
-    fn try_emit(&self, event: Event) {
-        self.send_event(event);
+    fn try_emit(&self, status: Status) {
+        self.send_status(status);
     }
 
-    fn emit(&self, status: Event) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
+    fn emit(&self, status: Status) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
         Box::pin(async move {
             match self.kind {
                 ChannelKind::Mpsc => {

@@ -1,13 +1,14 @@
-use crate::Event;
-use crate::Receiver;
 use std::future::Future;
 use std::pin::Pin;
 use std::sync::Arc;
 
+use super::Receiver;
+use crate::status::Status;
+
 // trait for Emitter
 pub trait EmitterHandler: Send + Sync {
-    fn try_emit(&self, event: Event);
-    fn emit(&self, event: Event) -> Pin<Box<dyn Future<Output = ()> + Send + '_>>;
+    fn try_emit(&self, status: Status);
+    fn emit(&self, status: Status) -> Pin<Box<dyn Future<Output = ()> + Send + '_>>;
     fn subscribe(&self) -> Option<Arc<Receiver>>;
 }
 
@@ -21,12 +22,12 @@ impl Emitter {
         Self { emitter }
     }
 
-    pub fn sync_emit(&self, event: Event) {
-        self.emitter.try_emit(event);
+    pub fn sync_emit(&self, status: Status) {
+        self.emitter.try_emit(status);
     }
 
-    pub async fn async_emit(&self, event: Event) {
-        self.emitter.emit(event).await;
+    pub async fn async_emit(&self, status: Status) {
+        self.emitter.emit(status).await;
     }
 
     pub fn subscribe(&self) -> Option<Arc<Receiver>> {

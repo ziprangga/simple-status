@@ -9,7 +9,7 @@ pub use receiver::{Receiver, ReceiverHandler};
 pub use channel_emitter::ChannelEmitter;
 pub use channel_receiver::ChannelReceiver;
 
-use crate::status::Event;
+use crate::status::Status;
 use std::sync::Arc;
 
 #[derive(Debug, Clone)]
@@ -31,17 +31,17 @@ impl std::str::FromStr for ChannelKind {
 }
 
 #[derive(Debug, Clone, Default)]
-pub struct Channel {
+pub struct Channels {
     emitter: Option<Arc<Emitter>>,
     receiver: Option<Arc<Receiver>>,
 }
 
-impl Channel {
+impl Channels {
     pub fn new(emitter: Option<Arc<Emitter>>, receiver: Option<Arc<Receiver>>) -> Self {
         Self { emitter, receiver }
     }
 
-    pub async fn recv_async(&self) -> Option<Event> {
+    pub async fn recv_async(&self) -> Option<Status> {
         if let Some(receiver) = &self.receiver {
             receiver.async_recv().await
         } else {
@@ -49,7 +49,7 @@ impl Channel {
         }
     }
 
-    pub fn recv_sync(&self) -> Option<Event> {
+    pub fn recv_sync(&self) -> Option<Status> {
         self.receiver.as_ref().and_then(|r| r.sync_recv())
     }
 

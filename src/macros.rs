@@ -1,13 +1,15 @@
+use crate::Emitter;
 use crate::Event;
+use crate::Status;
 use std::path::PathBuf;
 
-pub fn build_event(
+pub fn build_status(
     stage: Option<String>,
     current: Option<usize>,
     total: Option<usize>,
     message: Option<String>,
     path: Option<PathBuf>,
-) -> Event {
+) -> Status {
     let mut builder = Event::builder();
 
     if let Some(stage) = stage {
@@ -26,39 +28,19 @@ pub fn build_event(
         builder = builder.path(path);
     }
 
-    builder.build()
+    Status::new(builder.build())
 }
 
-#[macro_export]
-macro_rules! event {
-    (
-        $(stage: $stage:expr,)?
-        $(current: $current:expr,)?
-        $(total: $total:expr,)?
-        $(message: $message:expr,)?
-        $(path: $path:expr,)?
-    ) => {{
+pub async fn emit_status_async(emitter: Option<&Emitter>, status: Status) {
+    if let Some(e) = emitter {
+        e.async_emit(status).await;
+    }
+}
 
-        $crate::build_event(
-            $crate::event!(@opt_str $($stage)?),
-            $crate::event!(@opt_usize $($current)?),
-            $crate::event!(@opt_usize $($total)?),
-            $crate::event!(@opt_str $($message)?),
-            $crate::event!(@opt_path $($path)?),
-        )
-    }};
-
-    (@opt_str $value:expr) => { Some($value.into()) };
-    (@opt_str) => { None };
-    (@opt_usize $value:expr) => { Some($value) };
-    (@opt_usize) => { None };
-    (@opt_path $value:expr) => { Some($value) };
-    (@opt_path) => { None };
-
-    ($($arg:tt)+) => {{
-        $crate::build_event(None, None, None, Some(format!($($arg)+)), None)
-    }};
-
+pub fn emit_status_sync(emitter: Option<&Emitter>, status: Status) {
+    if let Some(e) = emitter {
+        e.sync_emit(status);
+    }
 }
 
 #[macro_export]
@@ -70,41 +52,33 @@ macro_rules! status {
         $(message: $message:expr,)?
         $(path: $path:expr,)?
     ) => {{
-        $crate::event!(
-            $(stage: $stage,)?
-            $(current: $current,)?
-            $(total: $total,)?
-            $(message: $message,)?
-            $(path: $path,)?
+
+        $crate::build_status(
+            $crate::status!(@opt_str $($stage)?),
+            $crate::status!(@opt_usize $($current)?),
+            $crate::status!(@opt_usize $($total)?),
+            $crate::status!(@opt_str $($message)?),
+            $crate::status!(@opt_path $($path)?),
         )
     }};
 
-    ($($arg:tt)+) => {{ $crate::Status::new($crate::event!($($arg)+))
+    (@opt_str $value:expr) => { Some($value.into()) };
+    (@opt_str) => { None };
+    (@opt_usize $value:expr) => { Some($value) };
+    (@opt_usize) => { None };
+    (@opt_path $value:expr) => { Some($value) };
+    (@opt_path) => { None };
+
+    ($($arg:tt)+) => {{
+        $crate::build_status(None, None, None, Some(format!($($arg)+)), None)
     }};
+
 }
 
 #[macro_export]
-macro_rules! event_emit {
+macro_rules! status_emit {
+    // ==================================
     // async mode
-    (async, Some($emitter:expr),
-        $(stage: $stage:expr,)?
-        $(current: $current:expr,)?
-        $(total: $total:expr,)?
-        $(message: $message:expr,)?
-        $(path: $path:expr,)?
-    ) => {{
-        match $emitter {
-            Some(emitter) => emitter.async_emit($crate::event!(
-                $(stage: $stage,)?
-                $(current: $current,)?
-                $(total: $total,)?
-                $(message: $message,)?
-                $(path: $path,)?
-            )).await,
-            None => {}
-        }
-    }};
-
     (async, $emitter:expr,
         $(stage: $stage:expr,)?
         $(current: $current:expr,)?
@@ -112,48 +86,28 @@ macro_rules! event_emit {
         $(message: $message:expr,)?
         $(path: $path:expr,)?
     ) => {{
-       $emitter.async_emit($crate::event!(
-            $(stage: $stage,)?
-            $(current: $current,)?
-            $(total: $total,)?
-            $(message: $message,)?
-            $(path: $path,)?
-        )).await
-    }};
-
-    (async, Some($emitter:expr), $($arg:tt)+) => {{
-        match $emitter {
-            Some(emitter) => emitter.async_emit($crate::event!($($arg)+)).await,
-            None => {},
-         }
-    }};
-
-    (async, $emitter:expr, $($arg:tt)+) => {{
-        $emitter.async_emit(
-                $crate::event!($($arg)+)
-        ).await;
-    }};
-
-    // sync mode (default)
-    (Some($emitter:expr),
-        $(stage: $stage:expr,)?
-        $(current: $current:expr,)?
-        $(total: $total:expr,)?
-        $(message: $message:expr,)?
-        $(path: $path:expr,)?
-    ) => {{
-        match $emitter {
-            Some(emitter) => emitter.sync_emit($crate::event!(
+        $crate::emit_status_async(
+            $crate::status_emit!(@opt_emitter $emitter),
+            $crate::status!(
                 $(stage: $stage,)?
                 $(current: $current,)?
                 $(total: $total,)?
                 $(message: $message,)?
                 $(path: $path,)?
-            )),
-            None => {}
-        }
+            )
+        ).await
+
     }};
 
+    (async, $emitter:expr, $($arg:tt)+) => {{
+        $crate::emit_status_async(
+            $crate::status_emit!(@opt_emitter $emitter),
+            $crate::status!($($arg)+)
+        ).await;
+    }};
+
+    // =================================
+    // sync mode (default)
     ($emitter:expr,
         $(stage: $stage:expr,)?
         $(current: $current:expr,)?
@@ -161,7 +115,9 @@ macro_rules! event_emit {
         $(message: $message:expr,)?
         $(path: $path:expr,)?
     ) => {{
-       $emitter.sync_emit($crate::event!(
+       $crate::emit_status_sync(
+           $crate::status_emit!(@opt_emitter $emitter),
+           $crate::status!(
             $(stage: $stage,)?
             $(current: $current,)?
             $(total: $total,)?
@@ -170,16 +126,13 @@ macro_rules! event_emit {
         ))
     }};
 
-    (Some($emitter:expr), $($arg:tt)+) => {{
-        match $emitter {
-            Some(emitter) => emitter.sync_emit($crate::event!($($arg)+)),
-            None => {},
-        }
-    }};
-
     ($emitter:expr, $($arg:tt)+) => {{
-        $emitter.sync_emit(
-                $crate::event!($($arg)+)
+        $crate::emit_status_sync(
+            $crate::status_emit!(@opt_emitter $emitter),
+            $crate::status!($($arg)+)
         );
     }};
+
+    (@opt_emitter $emitter:expr) => { $emitter };
+    (@opt_emitter) => { None };
 }

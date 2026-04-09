@@ -1,6 +1,7 @@
 use simple_status::{Emitter, Status};
 
 use crate::test_msg::*;
+
 pub async fn message_non_emit_task() -> Status {
     message_non_emit()
 }

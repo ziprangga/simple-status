@@ -1,12 +1,13 @@
-use crate::Event;
 use std::future::Future;
 use std::pin::Pin;
 use std::sync::Arc;
 
+use crate::status::Status;
+
 // trait for Receiver
 pub trait ReceiverHandler: Send + Sync {
-    fn try_recv(&self) -> Option<Event>;
-    fn recv(&self) -> Pin<Box<dyn Future<Output = Option<Event>> + Send + '_>>;
+    fn try_recv(&self) -> Option<Status>;
+    fn recv(&self) -> Pin<Box<dyn Future<Output = Option<Status>> + Send + '_>>;
 }
 
 #[derive(Clone)]
@@ -19,11 +20,11 @@ impl Receiver {
         Self { receiver }
     }
 
-    pub fn sync_recv(&self) -> Option<Event> {
+    pub fn sync_recv(&self) -> Option<Status> {
         self.receiver.try_recv()
     }
 
-    pub async fn async_recv(&self) -> Option<Event> {
+    pub async fn async_recv(&self) -> Option<Status> {
         self.receiver.recv().await
     }
 }

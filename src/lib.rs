@@ -12,7 +12,7 @@ pub use status::*;
 
 use std::sync::Arc;
 
-fn create_channel(buffer: usize, kind: ChannelKind) -> (Arc<Emitter>, Arc<Receiver>) {
+fn create_channels(buffer: usize, kind: ChannelKind) -> (Arc<Emitter>, Arc<Receiver>) {
     match kind {
         ChannelKind::Mpsc => {
             let (tx, rx) = tokio::sync::mpsc::channel(buffer);
@@ -40,8 +40,8 @@ fn create_channel(buffer: usize, kind: ChannelKind) -> (Arc<Emitter>, Arc<Receiv
     }
 }
 
-pub fn init_channel(buffer: usize, kind: ChannelKind) -> Channel {
-    let (emitter, receiver) = create_channel(buffer, kind);
-    let channel_handler = Channel::new(Some(emitter), Some(receiver));
+pub fn init_channels(buffer: usize, kind: ChannelKind) -> Channels {
+    let (emitter, receiver) = create_channels(buffer, kind);
+    let channel_handler = Channels::new(Some(emitter), Some(receiver));
     channel_handler
 }

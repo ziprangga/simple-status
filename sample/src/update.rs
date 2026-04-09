@@ -12,46 +12,43 @@ pub fn update(state: &mut AppState, message: AppMessage) -> Task<AppMessage> {
         AppMessage::ButtonEmitAsync => {
             state.source = StatusSource::EmitAsync;
             let channel = state.channel.clone();
-            let mut status = state.show_status.clone();
 
             Task::perform(
                 async move {
                     if let Some(emitter) = &channel.emitter() {
                         message_emit_async_task(emitter).await;
-                        if let Some(event) = channel.recv_async().await {
-                            status.set_event(event);
+                        if let Some(status) = channel.recv_async().await {
+                            return AppMessage::ShowStatus(status);
                         }
                     }
-                    status
+                    AppMessage::NoOperations
                 },
-                AppMessage::ShowStatus,
+                |msg| msg,
             )
         }
 
         AppMessage::ButtonEmit => {
             state.source = StatusSource::Emit;
-
             let channel = state.channel.clone();
-            let mut status = state.show_status.clone();
 
             Task::perform(
                 async move {
                     if let Some(emitter) = &channel.emitter() {
                         message_emit_task(emitter).await;
-                        if let Some(event) = channel.recv_async().await {
-                            status.set_event(event);
+                        if let Some(status) = channel.recv_async().await {
+                            return AppMessage::ShowStatus(status);
                         }
                     }
-                    status
+                    AppMessage::NoOperations
                 },
-                AppMessage::ShowStatus,
+                |msg| msg,
             )
         }
 
         AppMessage::ButtonNonEmit => {
             state.source = StatusSource::NonEmit;
-            Task::perform(async { message_non_emit_task().await }, move |event| {
-                AppMessage::ShowStatus(event)
+            Task::perform(async { message_non_emit_task().await }, move |status| {
+                AppMessage::ShowStatus(status)
             })
         }
 
@@ -65,8 +62,8 @@ pub fn update(state: &mut AppState, message: AppMessage) -> Task<AppMessage> {
             state.source = StatusSource::OptionNonEmit;
             Task::perform(
                 async { message_non_emit_with_option_task().await },
-                move |maybe_event| match maybe_event {
-                    Some(event) => AppMessage::ShowStatus(event),
+                move |maybe_status| match maybe_status {
+                    Some(status) => AppMessage::ShowStatus(status),
                     None => AppMessage::NoOperations,
                 },
             )
@@ -74,21 +71,19 @@ pub fn update(state: &mut AppState, message: AppMessage) -> Task<AppMessage> {
 
         AppMessage::ButtonOptionEmitAsync => {
             state.source = StatusSource::OptionEmitAsync;
-
             let channel = state.channel.clone();
-            let mut status = state.show_status.clone();
 
             Task::perform(
                 async move {
                     if let Some(emitter) = &channel.emitter() {
                         message_emit_with_option_task(Some(&emitter)).await;
-                        if let Some(event) = channel.recv_async().await {
-                            status.set_event(event);
+                        if let Some(status) = channel.recv_async().await {
+                            return AppMessage::ShowStatus(status);
                         }
                     }
-                    status
+                    AppMessage::NoOperations
                 },
-                AppMessage::ShowStatus,
+                |msg| msg,
             )
         }
 

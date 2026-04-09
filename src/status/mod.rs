@@ -1,8 +1,7 @@
 mod event;
 
-pub use event::Event;
-
 use crate::format::{EventFormatConfig, EventFormatter};
+pub use event::Event;
 
 #[derive(Debug, Default, Clone)]
 pub struct Status {

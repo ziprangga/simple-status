@@ -1,15 +1,15 @@
-use simple_status::{Emitter, Status, event_emit, status};
+use simple_status::{Emitter, Status, status, status_emit};
 
 pub fn message_non_emit() -> Status {
     status!("this is non emit/return status")
 }
 
 pub fn message_emit(emitter: &Emitter) {
-    event_emit!(emitter, "this is emit");
+    status_emit!(Some(emitter), "this is emit");
 }
 
 pub async fn message_emit_async(emitter: &Emitter) {
-    event_emit!(async, emitter, "this is async emit");
+    status_emit!(async, Some(emitter), "this is async emit");
 }
 
 pub fn message_non_emit_with_option() -> Option<Status> {
@@ -17,9 +17,9 @@ pub fn message_non_emit_with_option() -> Option<Status> {
 }
 
 pub async fn message_emit_with_option(emitter: Option<&Emitter>) {
-    event_emit!(
+    status_emit!(
         async,
-        Some(emitter),
+        emitter,
         message: "this is option async emit",
     );
 }
