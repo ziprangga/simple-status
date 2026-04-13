@@ -9,7 +9,6 @@ use crate::status::Status;
 pub trait ReceiverHandler: Send + Sync {
     fn try_recv(&self) -> Option<Status>;
     fn recv(&self) -> Pin<Box<dyn Future<Output = Option<Status>> + Send + '_>>;
-
     fn stream(&self) -> Pin<Box<dyn Stream<Item = Status> + Send + '_>>;
 }
 

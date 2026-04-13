@@ -46,16 +46,16 @@ impl Channels {
         Self { emitter, receiver }
     }
 
+    pub fn recv_sync(&self) -> Option<Status> {
+        self.receiver.as_ref().and_then(|r| r.sync_recv())
+    }
+
     pub async fn recv_async(&self) -> Option<Status> {
         if let Some(receiver) = &self.receiver {
             receiver.async_recv().await
         } else {
             None
         }
-    }
-
-    pub fn recv_sync(&self) -> Option<Status> {
-        self.receiver.as_ref().and_then(|r| r.sync_recv())
     }
 
     pub fn stream_sync(&self) -> Option<Pin<Box<dyn Stream<Item = Status> + Send + '_>>> {
