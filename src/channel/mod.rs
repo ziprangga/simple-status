@@ -14,6 +14,9 @@ use futures::Stream;
 use std::pin::Pin;
 use std::sync::Arc;
 
+pub use async_stream::stream;
+pub use futures::StreamExt;
+
 #[derive(Debug, Clone)]
 pub enum ChannelKind {
     Mpsc,
@@ -55,8 +58,19 @@ impl Channels {
         self.receiver.as_ref().and_then(|r| r.sync_recv())
     }
 
-    pub fn stream(&self) -> Option<Pin<Box<dyn Stream<Item = Status> + Send + '_>>> {
+    pub fn stream_sync(&self) -> Option<Pin<Box<dyn Stream<Item = Status> + Send + '_>>> {
         self.receiver.as_ref().map(|r| r.stream())
+    }
+
+    pub fn stream_async(&self) -> Option<Pin<Box<dyn Stream<Item = Status> + Send>>> {
+        let receiver = self.receiver.as_ref()?.clone();
+
+        Some(Box::pin(stream! {
+            let mut s = receiver.stream();
+            while let Some(status) = s.next().await {
+                yield status;
+            }
+        }))
     }
 
     pub fn new_subscriber(&self) -> Option<Arc<Receiver>> {

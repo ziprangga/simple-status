@@ -1,6 +1,5 @@
 use iced::Task;
-use iced::futures::StreamExt;
-use simple_status::*;
+use simple_status::status;
 
 use crate::state::{AppMessage, AppState, StatusSource};
 use crate::task::{
@@ -72,46 +71,31 @@ pub fn update(state: &mut AppState, message: AppMessage) -> Task<AppMessage> {
 
         AppMessage::ButtonOptionEmitAsync => {
             state.source = StatusSource::OptionEmitAsync;
-            let channel = state.channel.clone();
 
-            // Task::perform(
-            //     async move {
-            //         if let Some(emitter) = &channel.emitter() {
-            //             message_emit_with_option_task(Some(&emitter)).await;
-            //             // if let Some(status) = channel.recv_async().await {
-            //             //     return AppMessage::ShowStatus(status);
-            //             // }
-            //             if let Some(stream) = channel.stream() {
-            //                 use iced::futures::StreamExt;
+            let message = {
+                let channel = state.channel.clone();
+                Task::perform(
+                    async move {
+                        if let Some(emitter) = &channel.emitter() {
+                            message_emit_with_option_task(Some(&emitter)).await;
+                        }
+                        AppMessage::NoOperations
+                    },
+                    |msg| msg,
+                )
+            };
 
-            //                 let mut stream = stream;
-
-            //                 while let Some(status) = stream.next().await {
-            //                     AppMessage::ShowStatus(status)
-            //                 }
-            //             }
-            //         }
-            //         AppMessage::NoOperations
-            //     },
-            //     |msg| msg,
-            // )
-
-            Task::stream(async_stream::stream! {
-
-                // 1. start emitter
-                if let Some(emitter) = &channel.emitter() {
-                    message_emit_with_option_task(Some(&emitter)).await;
+            let status_task = {
+                use iced::futures::StreamExt;
+                let channel = state.channel.clone();
+                if let Some(stream) = channel.stream_async() {
+                    Task::stream(stream.map(AppMessage::ShowStatus))
+                } else {
+                    Task::none()
                 }
+            };
 
-                // 2. consume stream AFTER emission begins
-                if let Some(stream) = channel.stream() {
-                    let mut stream = stream;
-
-                    while let Some(status) = stream.next().await {
-                        yield AppMessage::ShowStatus(status);
-                    }
-                }
-            })
+            Task::batch(vec![message, status_task])
         }
 
         AppMessage::ShowStatus(se) => {
