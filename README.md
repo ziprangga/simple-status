@@ -12,6 +12,17 @@ A **lightweight Rust crate** for emitting and tracking status events in asynchro
 * Thread-safe, `Arc`-wrapped channels for safe multi-threaded usage.
 * Works with `iced` or any async runtime (e.g., Tokio).
 
+## Example
+
+A complete working example is included in the [`sample`](./sample) crate.
+
+### Run the example
+
+```bash
+cd sample
+cargo run
+```
+
 ## Installation
 
 Add to your `Cargo.toml`:
@@ -19,7 +30,7 @@ Add to your `Cargo.toml`:
 ```toml
 [dependencies]
 simple-status = "0.1"
-iced = { version = "0.12", features = ["tokio"] }  # optional if using iced
+iced = { version = "0.14", features = ["tokio"] }  # optional if using iced
 ```
 
 ## Usage
