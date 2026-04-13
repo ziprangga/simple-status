@@ -6,16 +6,20 @@ mod receiver;
 pub use emitter::{Emitter, EmitterHandler};
 pub use receiver::{Receiver, ReceiverHandler};
 
-pub use channel_emitter::ChannelEmitter;
-pub use channel_receiver::ChannelReceiver;
+pub use channel_emitter::{BroadcastEmitter, MpscEmitter};
+pub use channel_receiver::{BroadcastReceiver, MpscReceiver};
 
 use crate::status::Status;
 use futures::Stream;
+use std::future::Future;
 use std::pin::Pin;
 use std::sync::Arc;
 
 pub use async_stream::stream;
 pub use futures::StreamExt;
+
+pub type BoxFuture<'a, T> = Pin<Box<dyn Future<Output = T> + Send + 'a>>;
+pub type BoxStream<'a, T> = Pin<Box<dyn Stream<Item = T> + Send + 'a>>;
 
 #[derive(Debug, Clone)]
 pub enum ChannelKind {
@@ -42,54 +46,78 @@ pub struct Channels {
 }
 
 impl Channels {
-    pub fn new(emitter: Option<Arc<Emitter>>, receiver: Option<Arc<Receiver>>) -> Self {
-        Self { emitter, receiver }
+    pub fn new(emitter: Option<impl Into<Emitter>>, receiver: Option<impl Into<Receiver>>) -> Self {
+        Self {
+            emitter: emitter.map(|e| Arc::new(e.into())),
+            receiver: receiver.map(|r| Arc::new(r.into())),
+        }
     }
 
+    pub fn set_emitter(&mut self, emitter: impl Into<Emitter>) {
+        self.emitter = Some(Arc::new(emitter.into()));
+    }
+
+    pub fn set_receiver(&mut self, receiver: impl Into<Receiver>) {
+        self.receiver = Some(Arc::new(receiver.into()));
+    }
+
+    pub fn get_emitter(&self) -> Option<Arc<Emitter>> {
+        self.emitter.clone()
+    }
+
+    pub fn get_receiver(&self) -> Option<Arc<Receiver>> {
+        self.receiver.clone()
+    }
+
+    /// Synchronous emission (Non-blocking)
+    pub fn emit_sync(&self, status: Status) {
+        if let Some(e) = &self.emitter {
+            e.sync_emit(status);
+        }
+    }
+
+    /// Asynchronous emission (Awaitable)
+    pub async fn emit_async(&self, status: Status) {
+        if let Some(e) = &self.emitter {
+            e.async_emit(status).await;
+        }
+    }
+
+    /// Synchronous receiver
     pub fn recv_sync(&self) -> Option<Status> {
-        self.receiver.as_ref().and_then(|r| r.sync_recv())
+        self.receiver.as_ref()?.sync_recv()
     }
 
+    /// Asynchronous receiver
     pub async fn recv_async(&self) -> Option<Status> {
-        if let Some(receiver) = &self.receiver {
-            receiver.async_recv().await
+        if let Some(r) = &self.receiver {
+            r.async_recv().await
         } else {
             None
         }
     }
 
-    pub fn stream_sync(&self) -> Option<Pin<Box<dyn Stream<Item = Status> + Send + '_>>> {
-        self.receiver.as_ref().map(|r| r.stream())
+    /// sync stream
+    pub fn stream_sync(&self) -> Option<BoxStream<'_, Status>> {
+        let receiver = self.receiver.as_ref()?;
+        receiver.stream()
     }
 
-    pub fn stream_async(&self) -> Option<Pin<Box<dyn Stream<Item = Status> + Send>>> {
+    /// async stream
+    pub fn stream_async(&self) -> Option<BoxStream<'static, Status>> {
         let receiver = self.receiver.as_ref()?.clone();
 
         Some(Box::pin(stream! {
-            let mut s = receiver.stream();
-            while let Some(status) = s.next().await {
-                yield status;
+            if let Some(mut s) = receiver.stream() {
+                while let Some(status) = s.next().await {
+                    yield status;
+                }
             }
         }))
     }
 
-    pub fn new_subscriber(&self) -> Option<Arc<Receiver>> {
+    /// Create a new subscriber from the existing emitter
+    pub fn subscribe(&self) -> Option<Arc<Receiver>> {
         self.emitter.as_ref()?.subscribe()
-    }
-
-    pub fn emitter(&self) -> Option<Arc<Emitter>> {
-        self.emitter.clone()
-    }
-
-    pub fn receiver(&self) -> Option<Arc<Receiver>> {
-        self.receiver.clone()
-    }
-
-    pub fn set_emitter(&mut self, emitter: Option<Arc<Emitter>>) {
-        self.emitter = emitter;
-    }
-
-    pub fn set_receiver(&mut self, receiver: Option<Arc<Receiver>>) {
-        self.receiver = receiver;
     }
 }

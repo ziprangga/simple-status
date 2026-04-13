@@ -24,7 +24,7 @@ fn test_status_format_message() {
 #[test]
 fn test_mpsc_sync_emit_recv() {
     let channels = init_channels(10, ChannelKind::Mpsc);
-    let emitter = channels.emitter().unwrap();
+    let emitter = channels.get_emitter().unwrap();
 
     status_emit!(
         Some(&*emitter),
@@ -38,7 +38,7 @@ fn test_mpsc_sync_emit_recv() {
 #[test]
 fn test_broadcast_sync_emit_recv() {
     let channels = init_channels(10, ChannelKind::Broadcast);
-    let emitter = channels.emitter().unwrap();
+    let emitter = channels.get_emitter().unwrap();
 
     status_emit!(
         Some(&*emitter),
@@ -55,7 +55,7 @@ fn test_broadcast_sync_emit_recv() {
 #[tokio::test]
 async fn test_async_emit_recv() {
     let channels = init_channels(10, ChannelKind::Mpsc);
-    let emitter = channels.emitter().unwrap();
+    let emitter = channels.get_emitter().unwrap();
 
     status_emit!(
         async,

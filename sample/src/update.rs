@@ -15,7 +15,7 @@ pub fn update(state: &mut AppState, message: AppMessage) -> Task<AppMessage> {
 
             Task::perform(
                 async move {
-                    if let Some(emitter) = &channel.emitter() {
+                    if let Some(emitter) = &channel.get_emitter() {
                         message_emit_async_task(emitter).await;
                         if let Some(status) = channel.recv_async().await {
                             return AppMessage::ShowStatus(status);
@@ -33,7 +33,7 @@ pub fn update(state: &mut AppState, message: AppMessage) -> Task<AppMessage> {
 
             Task::perform(
                 async move {
-                    if let Some(emitter) = &channel.emitter() {
+                    if let Some(emitter) = &channel.get_emitter() {
                         message_emit_task(emitter).await;
                         if let Some(status) = channel.recv_async().await {
                             return AppMessage::ShowStatus(status);
@@ -76,7 +76,7 @@ pub fn update(state: &mut AppState, message: AppMessage) -> Task<AppMessage> {
                 let channel = state.channel.clone();
                 Task::perform(
                     async move {
-                        if let Some(emitter) = &channel.emitter() {
+                        if let Some(emitter) = &channel.get_emitter() {
                             message_emit_with_option_task(Some(&emitter)).await;
                         }
                         AppMessage::NoOperations

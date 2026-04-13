@@ -1,15 +1,14 @@
-use futures::Stream;
-use std::future::Future;
-use std::pin::Pin;
+use crate::status::Status;
 use std::sync::Arc;
 
-use crate::status::Status;
+use super::BoxFuture;
+use super::BoxStream;
 
 // trait for Receiver
 pub trait ReceiverHandler: Send + Sync {
     fn try_recv(&self) -> Option<Status>;
-    fn recv(&self) -> Pin<Box<dyn Future<Output = Option<Status>> + Send + '_>>;
-    fn stream(&self) -> Pin<Box<dyn Stream<Item = Status> + Send + '_>>;
+    fn recv(&self) -> BoxFuture<'_, Option<Status>>;
+    fn stream(&self) -> BoxStream<'_, Status>;
 }
 
 #[derive(Clone)]
@@ -30,8 +29,16 @@ impl Receiver {
         self.receiver.recv().await
     }
 
-    pub fn stream(&self) -> Pin<Box<dyn Stream<Item = Status> + Send + '_>> {
-        self.receiver.stream()
+    pub fn stream(&self) -> Option<BoxStream<'_, Status>> {
+        Some(self.receiver.stream())
+    }
+}
+
+impl<T: ReceiverHandler + 'static> From<T> for Receiver {
+    fn from(handler: T) -> Self {
+        Self {
+            receiver: Arc::new(handler),
+        }
     }
 }
 

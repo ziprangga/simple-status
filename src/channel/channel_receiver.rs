@@ -1,111 +1,88 @@
-use std::future::Future;
-use std::pin::Pin;
 use tokio::sync::Mutex;
 use tokio::sync::broadcast;
 use tokio::sync::mpsc;
 
-use super::ChannelKind;
 use super::ReceiverHandler;
 use crate::status::Status;
-
 use async_stream::stream;
-use futures::Stream;
+
+use super::BoxFuture;
+use super::BoxStream;
 
 #[derive(Debug)]
-pub struct ChannelReceiver {
-    kind: ChannelKind,
-    mpsc_receiver: Option<Mutex<mpsc::Receiver<Status>>>,
-    broadcast_receiver: Option<Mutex<broadcast::Receiver<Status>>>,
+pub struct MpscReceiver {
+    inner: Mutex<mpsc::Receiver<Status>>,
 }
 
-impl ChannelReceiver {
-    pub fn new_mpsc(rx: mpsc::Receiver<Status>) -> Self {
+impl MpscReceiver {
+    pub fn new(rx: mpsc::Receiver<Status>) -> Self {
         Self {
-            kind: ChannelKind::Mpsc,
-            mpsc_receiver: Some(Mutex::new(rx)),
-            broadcast_receiver: None,
-        }
-    }
-
-    pub fn new_broadcast(rx: broadcast::Receiver<Status>) -> Self {
-        Self {
-            kind: ChannelKind::Broadcast,
-            mpsc_receiver: None,
-            broadcast_receiver: Some(Mutex::new(rx)),
-        }
-    }
-
-    fn try_recv_status(&self) -> Option<Status> {
-        match self.kind {
-            ChannelKind::Mpsc => {
-                let mut guard = self.mpsc_receiver.as_ref()?.try_lock().ok()?;
-                guard.try_recv().ok()
-            }
-            ChannelKind::Broadcast => {
-                let mut guard = self.broadcast_receiver.as_ref()?.try_lock().ok()?;
-                guard.try_recv().ok()
-            }
+            inner: Mutex::new(rx),
         }
     }
 }
 
-impl ReceiverHandler for ChannelReceiver {
+impl ReceiverHandler for MpscReceiver {
     fn try_recv(&self) -> Option<Status> {
-        self.try_recv_status()
+        self.inner.try_lock().ok()?.try_recv().ok()
     }
 
-    fn recv(&self) -> Pin<Box<dyn Future<Output = Option<Status>> + Send + '_>> {
+    fn recv(&self) -> BoxFuture<'_, Option<Status>> {
+        Box::pin(async move { self.inner.lock().await.recv().await })
+    }
+
+    fn stream(&self) -> BoxStream<'_, Status> {
+        Box::pin(stream! {
+            while let Some(status) = self.recv().await {
+                yield status;
+            }
+        })
+    }
+}
+
+#[derive(Debug)]
+pub struct BroadcastReceiver {
+    inner: Mutex<broadcast::Receiver<Status>>,
+}
+
+impl BroadcastReceiver {
+    pub fn new(rx: broadcast::Receiver<Status>) -> Self {
+        Self {
+            inner: Mutex::new(rx),
+        }
+    }
+}
+
+impl ReceiverHandler for BroadcastReceiver {
+    fn try_recv(&self) -> Option<Status> {
+        let mut guard = self.inner.try_lock().ok()?;
+        loop {
+            match guard.try_recv() {
+                Ok(status) => return Some(status),
+                Err(broadcast::error::TryRecvError::Lagged(_)) => continue,
+                _ => return None,
+            }
+        }
+    }
+
+    fn recv(&self) -> BoxFuture<'_, Option<Status>> {
         Box::pin(async move {
-            match self.kind {
-                ChannelKind::Mpsc => {
-                    let rx = self.mpsc_receiver.as_ref()?;
-                    let mut guard = rx.lock().await;
-                    guard.recv().await
-                }
-                ChannelKind::Broadcast => {
-                    let rx = self.broadcast_receiver.as_ref()?;
-                    let mut guard = rx.lock().await;
-                    loop {
-                        match guard.recv().await {
-                            Ok(v) => return Some(v),
-                            Err(broadcast::error::RecvError::Lagged(_)) => continue,
-                            Err(_) => return None,
-                        }
-                    }
+            let mut guard = self.inner.lock().await;
+            loop {
+                match guard.recv().await {
+                    Ok(status) => return Some(status),
+                    Err(broadcast::error::RecvError::Lagged(_)) => continue,
+                    _ => return None,
                 }
             }
         })
     }
 
-    fn stream(&self) -> Pin<Box<dyn Stream<Item = Status> + Send + '_>> {
-        match self.kind {
-            ChannelKind::Mpsc => {
-                let rx = self.mpsc_receiver.as_ref().unwrap();
-
-                Box::pin(stream! {
-                    let mut guard = rx.lock().await;
-
-                    while let Some(v) = guard.recv().await {
-                        yield v;
-                    }
-                })
+    fn stream(&self) -> BoxStream<'_, Status> {
+        Box::pin(stream! {
+            while let Some(status) = self.recv().await {
+                yield status;
             }
-
-            ChannelKind::Broadcast => {
-                let rx = self.broadcast_receiver.as_ref().unwrap();
-
-                Box::pin(stream! {
-                    let mut guard = rx.lock().await;
-
-                    loop {
-                        match guard.recv().await {
-                            Ok(v) => yield v,
-                            Err(broadcast::error::RecvError::Lagged(_)) => continue,
-                            Err(_) => break,
-                        }
-                    }
-                })
-            }
-        }
+        })
     }
 }
