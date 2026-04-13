@@ -5,11 +5,11 @@ A **lightweight Rust crate** for emitting and tracking status events in asynchro
 ## Features
 
 * Asynchronous and synchronous status event handling using `Emitter` and `Receiver`.
-* Progress tracking with `stage`, `current`, and `total`.
-* Custom messages with optional file paths.
+* Flexible Progress Tracking: Built-in support for `stage`, `current`, `total`, `message`, and `PathBuf`.
 * Simple macros for building and emitting status events: `status!` and `status_emit!`.
-* Supports multiple channel types: `Mpsc` and `Broadcast`.
+* Zero-Branching Strategy: Specialized `Mpsc` and `Broadcast` implementations for maximum performance.
 * Thread-safe, `Arc`-wrapped channels for safe multi-threaded usage.
+* Dual-Stream Support: `stream_sync()` for local borrows and `stream_async()` for 'static lifetimes (required by Iced Tasks).
 * Works with `iced` or any async runtime (e.g., Tokio).
 
 ## Example
@@ -29,7 +29,7 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-simple-status = "0.1"
+simple-status = "0.1.2"
 iced = { version = "0.14", features = ["tokio"] }  # optional if using iced
 ```
 
@@ -41,18 +41,27 @@ iced = { version = "0.14", features = ["tokio"] }  # optional if using iced
 use simple_status::{init_channels, ChannelKind};
 
 let channels = init_channels(10, ChannelKind::Broadcast);
-let emitter = channels.emitter();   // Arc<Emitter>
-let receiver = channels.receiver(); // Arc<Receiver>
 ```
 
 ### Receiving events asynchronously
 
 ```rust
-use simple_status::Status;
+if let Some(emitter) = &channel.get_emitter() {
+    // when use argument Option<&Emitter>
+    running_function(Some(&emitter)).await
+    
+    // Standard async receive
+    if let Some(status) = channels.recv_async().await {
+        println!("{}", status); 
+    }
 
-async fn listen(receiver: Arc<simple_status::Receiver>) {
-    while let Some(status) = receiver.async_recv().await {
-        println!("{}", status); // handle Status
+}
+
+
+// For background tasks (returns a 'static stream), look sample for more info
+if let Some(mut stream) = channels.stream_async() {
+    while let Some(status) = stream.next().await {
+        println!("Received: {}", status);
     }
 }
 ```
@@ -62,6 +71,8 @@ async fn listen(receiver: Arc<simple_status::Receiver>) {
 ```rust
 use simple_status::{status, status_emit};
 
+let emitter = channels.get_emitter();
+
 // Using the builder-style macro
 let event = status!(
     stage: "Downloading",
@@ -69,6 +80,9 @@ let event = status!(
     total: 10,
     message: "Downloading file 3 of 10",
 );
+
+// Return Status directly
+status!("message")
 
 // Emit asynchronously (await required)
 status_emit!(async, emitter.as_ref(), stage: "Downloading", current: 3, total: 10, message: "Downloading file 3 of 10");
@@ -80,15 +94,13 @@ status_emit!(emitter.as_ref(), "All tasks completed!");
 ### Build custom status
 
 ```rust
-use simple_status::{build_status, Status};
+use simple_status::status;
 use std::path::PathBuf;
 
-let status: Status = build_status(
-    Some("Processing".into()),
-    Some(2),
-    Some(5),
-    Some("Step 2 of 5".into()),
-    Some(PathBuf::from("/tmp/output")),
+let s = status!(
+    stage: "Processing",
+    message: "Analyzing data...",
+    path: PathBuf::from("/logs/app.log"),
 );
 ```
 
@@ -99,7 +111,7 @@ let status: Status = build_status(
 * `Channels` – holds both emitter and receiver and allows creating new subscribers for broadcast channels.
 
 ```rust
-let new_sub = channels.new_subscriber(); // Option<Arc<Receiver>>
+let new_sub = channels.subscriber(); // Option<Arc<Receiver>>
 ```
 
 ## License
