@@ -22,7 +22,7 @@ fn init() -> (AppState, Task<AppMessage>) {
 
 fn main() {
     application(init, update, view)
-        .title("Simple Status")
+        .title("Sample Simple Status")
         .position(window::Position::Centered)
         .window(window::Settings {
             size: Size::new(600.0, 100.0),

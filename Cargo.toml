@@ -12,6 +12,7 @@ categories = ["asynchronous", "utilities"]
 
 [dependencies]
 tokio = { version = "1.50", features = ["full"] }
+tokio-stream = "0.1"
 
 [workspace]
 members = [
