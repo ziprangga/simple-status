@@ -8,6 +8,9 @@ use super::ChannelKind;
 use super::ReceiverHandler;
 use crate::status::Status;
 
+use async_stream::stream;
+use futures::Stream;
+
 #[derive(Debug)]
 pub struct ChannelReceiver {
     kind: ChannelKind,
@@ -72,5 +75,37 @@ impl ReceiverHandler for ChannelReceiver {
                 }
             }
         })
+    }
+
+    fn stream(&self) -> Pin<Box<dyn Stream<Item = Status> + Send + '_>> {
+        match self.kind {
+            ChannelKind::Mpsc => {
+                let rx = self.mpsc_receiver.as_ref().unwrap();
+
+                Box::pin(stream! {
+                    let mut guard = rx.lock().await;
+
+                    while let Some(v) = guard.recv().await {
+                        yield v;
+                    }
+                })
+            }
+
+            ChannelKind::Broadcast => {
+                let rx = self.broadcast_receiver.as_ref().unwrap();
+
+                Box::pin(stream! {
+                    let mut guard = rx.lock().await;
+
+                    loop {
+                        match guard.recv().await {
+                            Ok(v) => yield v,
+                            Err(broadcast::error::RecvError::Lagged(_)) => continue,
+                            Err(_) => break,
+                        }
+                    }
+                })
+            }
+        }
     }
 }

@@ -16,7 +16,7 @@ use iced::{Size, Task, application, window};
 use simple_status::ChannelKind;
 
 fn init() -> (AppState, Task<AppMessage>) {
-    let app_state = AppState::new(100, ChannelKind::Broadcast);
+    let app_state = AppState::new(100, ChannelKind::Mpsc);
     (app_state, Task::none())
 }
 

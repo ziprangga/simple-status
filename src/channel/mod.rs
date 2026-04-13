@@ -10,6 +10,8 @@ pub use channel_emitter::ChannelEmitter;
 pub use channel_receiver::ChannelReceiver;
 
 use crate::status::Status;
+use futures::Stream;
+use std::pin::Pin;
 use std::sync::Arc;
 
 #[derive(Debug, Clone)]
@@ -51,6 +53,10 @@ impl Channels {
 
     pub fn recv_sync(&self) -> Option<Status> {
         self.receiver.as_ref().and_then(|r| r.sync_recv())
+    }
+
+    pub fn stream(&self) -> Option<Pin<Box<dyn Stream<Item = Status> + Send + '_>>> {
+        self.receiver.as_ref().map(|r| r.stream())
     }
 
     pub fn new_subscriber(&self) -> Option<Arc<Receiver>> {

@@ -1,4 +1,5 @@
 use iced::Task;
+use iced::futures::StreamExt;
 use simple_status::*;
 
 use crate::state::{AppMessage, AppState, StatusSource};
@@ -73,18 +74,44 @@ pub fn update(state: &mut AppState, message: AppMessage) -> Task<AppMessage> {
             state.source = StatusSource::OptionEmitAsync;
             let channel = state.channel.clone();
 
-            Task::perform(
-                async move {
-                    if let Some(emitter) = &channel.emitter() {
-                        message_emit_with_option_task(Some(&emitter)).await;
-                        if let Some(status) = channel.recv_async().await {
-                            return AppMessage::ShowStatus(status);
-                        }
+            // Task::perform(
+            //     async move {
+            //         if let Some(emitter) = &channel.emitter() {
+            //             message_emit_with_option_task(Some(&emitter)).await;
+            //             // if let Some(status) = channel.recv_async().await {
+            //             //     return AppMessage::ShowStatus(status);
+            //             // }
+            //             if let Some(stream) = channel.stream() {
+            //                 use iced::futures::StreamExt;
+
+            //                 let mut stream = stream;
+
+            //                 while let Some(status) = stream.next().await {
+            //                     AppMessage::ShowStatus(status)
+            //                 }
+            //             }
+            //         }
+            //         AppMessage::NoOperations
+            //     },
+            //     |msg| msg,
+            // )
+
+            Task::stream(async_stream::stream! {
+
+                // 1. start emitter
+                if let Some(emitter) = &channel.emitter() {
+                    message_emit_with_option_task(Some(&emitter)).await;
+                }
+
+                // 2. consume stream AFTER emission begins
+                if let Some(stream) = channel.stream() {
+                    let mut stream = stream;
+
+                    while let Some(status) = stream.next().await {
+                        yield AppMessage::ShowStatus(status);
                     }
-                    AppMessage::NoOperations
-                },
-                |msg| msg,
-            )
+                }
+            })
         }
 
         AppMessage::ShowStatus(se) => {

@@ -2698,9 +2698,10 @@ dependencies = [
 name = "sample"
 version = "0.1.0"
 dependencies = [
+ "async-stream",
  "iced",
  "simple-status",
- "tokio-stream",
+ "tokio",
 ]
 
 [[package]]

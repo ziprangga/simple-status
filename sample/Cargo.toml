@@ -13,4 +13,5 @@ iced = { git = "https://github.com/ziprangga/iced.git", features = [
     "wgpu",
     "advanced",
 ] }
-tokio-stream = "0.1.18"
+tokio = { version = "1", features = ["full"] }
+async-stream = "0.3"
