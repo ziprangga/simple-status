@@ -1,6 +1,5 @@
 mod event;
 
-// use crate::format::{EventFormatConfig, EventFormatter};
 pub use event::Event;
 
 pub trait StatusFormatter {
@@ -42,13 +41,6 @@ impl Status {
         self.event = event;
     }
 
-    // pub fn format<F>(&self, f: F) -> String
-    // where
-    //     F: EventFormatter,
-    // {
-    //     f.format(&self.event)
-    // }
-
     pub fn format_with<F>(&self, f: F) -> String
     where
         F: StatusFormatter,
@@ -56,13 +48,6 @@ impl Status {
         f.format(self)
     }
 }
-
-// impl std::fmt::Display for Status {
-//     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-//         let cfg = EventFormatConfig::default();
-//         write!(f, "{}", self.format(cfg))
-//     }
-// }
 
 impl std::fmt::Display for Status {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
