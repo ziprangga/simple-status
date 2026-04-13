@@ -17,9 +17,18 @@ pub fn message_non_emit_with_option() -> Option<Status> {
 }
 
 pub async fn message_emit_with_option(emitter: Option<&Emitter>) {
+    // status_emit!(
+    //     async,
+    //     emitter,
+    //     message: "this is option async emit",
+    // );
+
     status_emit!(
         async,
         emitter,
-        message: "this is option async emit",
+        stage: "test",
+        current: 12,
+        total: 20,
+        message: "build style",
     );
 }
