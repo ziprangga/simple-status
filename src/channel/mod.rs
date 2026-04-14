@@ -15,7 +15,6 @@ use std::future::Future;
 use std::pin::Pin;
 use std::sync::Arc;
 
-pub use async_stream::stream;
 pub use futures::StreamExt;
 
 pub type BoxFuture<'a, T> = Pin<Box<dyn Future<Output = T> + Send + 'a>>;
@@ -97,23 +96,11 @@ impl Channels {
         }
     }
 
-    /// sync stream
-    pub fn stream_sync(&self) -> Option<BoxStream<'_, Status>> {
-        let receiver = self.receiver.as_ref()?;
-        receiver.stream()
-    }
-
-    /// async stream
-    pub fn stream_async(&self) -> Option<BoxStream<'static, Status>> {
-        let receiver = self.receiver.as_ref()?.clone();
-
-        Some(Box::pin(stream! {
-            if let Some(mut s) = receiver.stream() {
-                while let Some(status) = s.next().await {
-                    yield status;
-                }
-            }
-        }))
+    /// Stream from existing receiver need StreamExt to map and use next(),
+    /// can be use from simple_status::StreamExt
+    /// that was re-export from futures
+    pub fn stream(&self) -> Option<BoxStream<'static, Status>> {
+        self.receiver.as_ref()?.stream()
     }
 
     /// Create a new subscriber from the existing emitter

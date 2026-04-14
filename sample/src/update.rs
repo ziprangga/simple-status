@@ -85,15 +85,12 @@ pub fn update(state: &mut AppState, message: AppMessage) -> Task<AppMessage> {
                 )
             };
 
-            let status_task = {
-                use iced::futures::StreamExt;
-                let channel = state.channel.clone();
-                if let Some(stream) = channel.stream_async() {
-                    Task::stream(stream.map(AppMessage::ShowStatus))
-                } else {
-                    Task::none()
-                }
-            };
+            use iced::futures::StreamExt;
+            let status_task = state
+                .channel
+                .stream()
+                .map(|s| Task::stream(s.map(AppMessage::ShowStatus)))
+                .unwrap_or_else(Task::none);
 
             Task::batch(vec![message, status_task])
         }

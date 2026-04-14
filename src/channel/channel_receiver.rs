@@ -4,7 +4,7 @@ use tokio::sync::mpsc;
 
 use super::ReceiverHandler;
 use crate::status::Status;
-use async_stream::stream;
+use futures::stream;
 
 use super::BoxFuture;
 use super::BoxStream;
@@ -32,11 +32,9 @@ impl ReceiverHandler for MpscReceiver {
     }
 
     fn stream(&self) -> BoxStream<'_, Status> {
-        Box::pin(stream! {
-            while let Some(status) = self.recv().await {
-                yield status;
-            }
-        })
+        Box::pin(stream::unfold(self, |this| async move {
+            this.recv().await.map(|status| (status, this))
+        }))
     }
 }
 
@@ -79,10 +77,8 @@ impl ReceiverHandler for BroadcastReceiver {
     }
 
     fn stream(&self) -> BoxStream<'_, Status> {
-        Box::pin(stream! {
-            while let Some(status) = self.recv().await {
-                yield status;
-            }
-        })
+        Box::pin(stream::unfold(self, |this| async move {
+            this.recv().await.map(|status| (status, this))
+        }))
     }
 }

@@ -4,6 +4,8 @@ use std::sync::Arc;
 use super::BoxFuture;
 use super::BoxStream;
 
+use futures::stream;
+
 // trait for Receiver
 pub trait ReceiverHandler: Send + Sync {
     fn try_recv(&self) -> Option<Status>;
@@ -29,8 +31,14 @@ impl Receiver {
         self.receiver.recv().await
     }
 
-    pub fn stream(&self) -> Option<BoxStream<'_, Status>> {
-        Some(self.receiver.stream())
+    pub fn stream(&self) -> Option<BoxStream<'static, Status>> {
+        let this = self.clone();
+        let s = stream::unfold(this, |res| async move {
+            let status = res.async_recv().await?;
+            Some((status, res))
+        });
+
+        Some(Box::pin(s) as BoxStream<'static, Status>)
     }
 }
 
