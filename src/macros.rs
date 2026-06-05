@@ -3,6 +3,22 @@ use crate::Event;
 use crate::Status;
 use std::path::PathBuf;
 
+pub trait IntoEmitter<'a> {
+    fn into_emitter(self) -> Option<&'a Emitter>;
+}
+
+impl<'a> IntoEmitter<'a> for Option<&'a Emitter> {
+    fn into_emitter(self) -> Option<&'a Emitter> {
+        self
+    }
+}
+
+impl<'a> IntoEmitter<'a> for &'a Emitter {
+    fn into_emitter(self) -> Option<&'a Emitter> {
+        Some(self)
+    }
+}
+
 pub fn build_status(
     stage: Option<String>,
     current: Option<usize>,
@@ -50,7 +66,7 @@ macro_rules! status {
         $(current: $current:expr,)?
         $(total: $total:expr,)?
         $(message: $message:expr,)?
-        $(path: $path:expr,)?
+        $(path: $path:expr $(,)?)?
     ) => {{
 
         $crate::build_status(
@@ -84,7 +100,7 @@ macro_rules! status_emit {
         $(current: $current:expr,)?
         $(total: $total:expr,)?
         $(message: $message:expr,)?
-        $(path: $path:expr,)?
+        $(path: $path:expr $(,)?)?
     ) => {{
         $crate::emit_status_async(
             $crate::status_emit!(@opt_emitter $emitter),
@@ -113,7 +129,7 @@ macro_rules! status_emit {
         $(current: $current:expr,)?
         $(total: $total:expr,)?
         $(message: $message:expr,)?
-        $(path: $path:expr,)?
+        $(path: $path:expr $(,)?)?
     ) => {{
        $crate::emit_status_sync(
            $crate::status_emit!(@opt_emitter $emitter),
@@ -133,6 +149,6 @@ macro_rules! status_emit {
         );
     }};
 
-    (@opt_emitter $emitter:expr) => { $emitter };
+    (@opt_emitter $emitter:expr) => { $crate::IntoEmitter::into_emitter($emitter) };
     (@opt_emitter) => { None };
 }
