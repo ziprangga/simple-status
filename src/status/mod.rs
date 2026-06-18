@@ -70,7 +70,7 @@ impl std::fmt::Display for Status {
         }
 
         if let Some(path) = &e.path() {
-            write!(f, "{}", path.display())?;
+            write!(f, " {}", path.display())?;
         }
 
         Ok(())
