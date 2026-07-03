@@ -8,7 +8,86 @@ pub use macros::*;
 pub use channel::*;
 pub use status::*;
 
-fn create_channels(buffer: usize, kind: ChannelKind) -> (Emitter, Receiver) {
+use std::sync::{Arc, OnceLock};
+
+static CHANNELS: OnceLock<Channels> = OnceLock::new();
+
+pub trait IntoEmitter<'a> {
+    fn into_emitter(self) -> Option<&'a Emitter>;
+}
+
+impl<'a> IntoEmitter<'a> for Option<&'a Emitter> {
+    fn into_emitter(self) -> Option<&'a Emitter> {
+        self
+    }
+}
+
+impl<'a> IntoEmitter<'a> for &'a Emitter {
+    fn into_emitter(self) -> Option<&'a Emitter> {
+        Some(self)
+    }
+}
+
+/// Initialize the global status channel.
+///
+/// Call once if want to use the global API/macros.
+pub fn init_global(buffer: usize, kind: ChannelKind) {
+    let _ = CHANNELS.set(init_channels(buffer, kind));
+}
+
+/// Initializes a new independent status channel.
+///
+/// Typically called once when creating your application state, although it may
+/// be called multiple times if need multiple independent `Channels`
+/// instances. This does not initialize or affect the global channel.
+pub fn init_channels(buffer: usize, kind: ChannelKind) -> Channels {
+    let (emitter, receiver) = create_channels(buffer, kind);
+    let channel_handler = Channels::new(Some(emitter), Some(receiver));
+    channel_handler
+}
+
+// =====================================
+// Global
+// =====================================
+
+/// Returns the global channel.
+///
+/// Panics if `init()` has not been called.
+pub fn channels() -> &'static Channels {
+    CHANNELS
+        .get()
+        .expect("simple_status::init() has not been called")
+}
+
+pub fn stream() -> Option<BoxStream<'static, Status>> {
+    channels().stream()
+}
+
+pub fn emit_sync(status: Status) {
+    channels().emit_sync(status);
+}
+
+pub async fn emit_async(status: Status) {
+    channels().emit_async(status).await;
+}
+
+pub fn recv_sync() -> Option<Status> {
+    channels().recv_sync()
+}
+
+pub async fn recv_async() -> Option<Status> {
+    channels().recv_async().await
+}
+
+pub fn subscribe() -> Option<Arc<Receiver>> {
+    channels().subscribe()
+}
+
+// ==========================
+// Instant
+// ==========================
+
+pub fn create_channels(buffer: usize, kind: ChannelKind) -> (Emitter, Receiver) {
     match kind {
         ChannelKind::Mpsc => {
             let (tx, rx) = tokio::sync::mpsc::channel(buffer);
@@ -31,8 +110,14 @@ fn create_channels(buffer: usize, kind: ChannelKind) -> (Emitter, Receiver) {
     }
 }
 
-pub fn init_channels(buffer: usize, kind: ChannelKind) -> Channels {
-    let (emitter, receiver) = create_channels(buffer, kind);
-    let channel_handler = Channels::new(Some(emitter), Some(receiver));
-    channel_handler
+pub async fn emit_status_async(emitter: Option<&Emitter>, status: Status) {
+    if let Some(e) = emitter {
+        e.async_emit(status).await;
+    }
+}
+
+pub fn emit_status_sync(emitter: Option<&Emitter>, status: Status) {
+    if let Some(e) = emitter {
+        e.sync_emit(status);
+    }
 }

@@ -9,7 +9,7 @@ pub use button_style::*;
 pub use state::{AppMessage, AppState};
 pub use task::*;
 pub use test_msg::*;
-pub use update::update;
+pub use update::{subscription, update};
 pub use view::view;
 
 use iced::{Size, Task, application, window};
@@ -31,6 +31,7 @@ fn main() {
             decorations: true,
             ..Default::default()
         })
+        .subscription(subscription)
         .run()
         .expect("Failed to run application");
 }

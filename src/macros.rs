@@ -1,23 +1,6 @@
-use crate::Emitter;
 use crate::Event;
 use crate::Status;
 use std::path::PathBuf;
-
-pub trait IntoEmitter<'a> {
-    fn into_emitter(self) -> Option<&'a Emitter>;
-}
-
-impl<'a> IntoEmitter<'a> for Option<&'a Emitter> {
-    fn into_emitter(self) -> Option<&'a Emitter> {
-        self
-    }
-}
-
-impl<'a> IntoEmitter<'a> for &'a Emitter {
-    fn into_emitter(self) -> Option<&'a Emitter> {
-        Some(self)
-    }
-}
 
 pub fn build_status(
     stage: Option<String>,
@@ -45,18 +28,6 @@ pub fn build_status(
     }
 
     Status::new(builder.build())
-}
-
-pub async fn emit_status_async(emitter: Option<&Emitter>, status: Status) {
-    if let Some(e) = emitter {
-        e.async_emit(status).await;
-    }
-}
-
-pub fn emit_status_sync(emitter: Option<&Emitter>, status: Status) {
-    if let Some(e) = emitter {
-        e.sync_emit(status);
-    }
 }
 
 #[macro_export]
@@ -95,7 +66,35 @@ macro_rules! status {
 macro_rules! status_emit {
     // ==================================
     // async mode
-    (async, $emitter:expr,
+    // ==================================
+    // GLOBAL ASYNC
+    (global, async,
+        $(stage: $stage:expr,)?
+        $(current: $current:expr,)?
+        $(total: $total:expr,)?
+        $(message: $message:expr,)?
+        $(path: $path:expr $(,)?)?
+    ) => {{
+        $crate::emit_async(
+            $crate::status!(
+                $(stage: $stage,)?
+                $(current: $current,)?
+                $(total: $total,)?
+                $(message: $message,)?
+                $(path: $path,)?
+            )
+        ).await;
+    }};
+
+    (global, async, $($arg:tt)+) => {{
+        $crate::emit_async(
+            $crate::status!($($arg)+)
+        ).await;
+    }};
+
+    // ================================
+    // INSTANCE ASYNC
+    (ins, async, $emitter:expr,
         $(stage: $stage:expr,)?
         $(current: $current:expr,)?
         $(total: $total:expr,)?
@@ -115,7 +114,7 @@ macro_rules! status_emit {
 
     }};
 
-    (async, $emitter:expr, $($arg:tt)+) => {{
+    (ins, async, $emitter:expr, $($arg:tt)+) => {{
         $crate::emit_status_async(
             $crate::status_emit!(@opt_emitter $emitter),
             $crate::status!($($arg)+)
@@ -123,8 +122,36 @@ macro_rules! status_emit {
     }};
 
     // =================================
-    // sync mode (default)
-    ($emitter:expr,
+    // Sync mode
+    // =================================
+    // GLOBAL SYNC
+    (global,
+        $(stage: $stage:expr,)?
+        $(current: $current:expr,)?
+        $(total: $total:expr,)?
+        $(message: $message:expr,)?
+        $(path: $path:expr $(,)?)?
+    ) => {{
+        $crate::emit_sync(
+            $crate::status!(
+                $(stage: $stage,)?
+                $(current: $current,)?
+                $(total: $total,)?
+                $(message: $message,)?
+                $(path: $path,)?
+            )
+        );
+    }};
+
+    (global, $($arg:tt)+) => {{
+        $crate::emit_sync(
+            $crate::status!($($arg)+)
+        );
+    }};
+
+    // ================================
+    // INSTANCE SYNC
+    (ins, $emitter:expr,
         $(stage: $stage:expr,)?
         $(current: $current:expr,)?
         $(total: $total:expr,)?
@@ -142,7 +169,7 @@ macro_rules! status_emit {
         ))
     }};
 
-    ($emitter:expr, $($arg:tt)+) => {{
+    (ins, $emitter:expr, $($arg:tt)+) => {{
         $crate::emit_status_sync(
             $crate::status_emit!(@opt_emitter $emitter),
             $crate::status!($($arg)+)

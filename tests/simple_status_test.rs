@@ -26,7 +26,7 @@ fn test_mpsc_sync_emit_recv() {
     let channels = init_channels(10, ChannelKind::Mpsc);
     let emitter = channels.get_emitter().unwrap();
 
-    status_emit!(
+    status_emit!(ins,
         Some(&*emitter),
         message: "sync mpsc",
     );
@@ -40,7 +40,7 @@ fn test_broadcast_sync_emit_recv() {
     let channels = init_channels(10, ChannelKind::Broadcast);
     let emitter = channels.get_emitter().unwrap();
 
-    status_emit!(
+    status_emit!(ins,
         Some(&*emitter),
         message: "sync broadcast",
     );
@@ -57,7 +57,7 @@ async fn test_async_emit_recv() {
     let channels = init_channels(10, ChannelKind::Mpsc);
     let emitter = channels.get_emitter().unwrap();
 
-    status_emit!(
+    status_emit!(ins,
         async,
         Some(&*emitter),
         message: "async test",
@@ -84,7 +84,7 @@ fn test_macro_with_raw_reference_argument() {
     let raw_ref: &Emitter = &*emitter;
 
     // The macro should automatically wrap this reference into Some() using the trait
-    status_emit!(
+    status_emit!(ins,
         raw_ref,
         message: "raw reference test",
     );
@@ -105,7 +105,7 @@ fn test_macro_with_option_variable_argument() {
     let option_var: Option<&Emitter> = Some(&*emitter);
 
     // The macro should forward this Option straight through without double-wrapping
-    status_emit!(
+    status_emit!(ins,
         option_var,
         message: "option variable test",
     );
@@ -124,7 +124,7 @@ fn test_macro_with_raw_reference_format_fallback() {
     let raw_ref: &Emitter = &*emitter;
 
     // Tests that the printf fallback rule also correctly uses the IntoEmitter trait
-    status_emit!(raw_ref, "fallback formatting with raw ref: {}", 100);
+    status_emit!(ins, raw_ref, "fallback formatting with raw ref: {}", 100);
 
     let received = channels.recv_sync().unwrap();
     assert_eq!(
@@ -142,7 +142,7 @@ async fn test_async_macro_with_option_and_raw_ref() {
     let option_var: Option<&Emitter> = Some(&*emitter);
 
     // Test async path with raw reference
-    status_emit!(
+    status_emit!(ins,
         async,
         raw_ref,
         message: "async raw ref",
@@ -154,7 +154,7 @@ async fn test_async_macro_with_option_and_raw_ref() {
     );
 
     // Test async path with option variable
-    status_emit!(
+    status_emit!(ins,
         async,
         option_var,
         message: "async option var",

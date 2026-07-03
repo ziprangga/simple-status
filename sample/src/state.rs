@@ -1,4 +1,4 @@
-use simple_status::{ChannelKind, Channels, Status, init_channels};
+use simple_status::{ChannelKind, Status, init_global};
 
 #[derive(Debug, Clone, Copy, Default)]
 pub enum StatusSource {
@@ -27,17 +27,17 @@ pub enum AppMessage {
 pub struct AppState {
     pub show_status: Status,
     pub source: StatusSource,
-    pub channel: Channels,
+    // pub channel: Channels,
 }
 
 impl AppState {
     pub fn new(buffer: usize, kind: ChannelKind) -> Self {
-        let channel = init_channels(buffer, kind);
+        let _ = init_global(buffer, kind);
 
         Self {
             show_status: Status::default(),
             source: StatusSource::default(),
-            channel: channel,
+            // channel: channel,
         }
     }
 
