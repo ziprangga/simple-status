@@ -13,7 +13,6 @@ pub fn update(state: &mut AppState, message: AppMessage) -> Task<AppMessage> {
         AppMessage::ButtonEmitAsync => {
             state.source = StatusSource::EmitAsync;
             // let channel = state.channel.clone();
-
             // Task::perform(
             //     async move {
             //         if let Some(emitter) = &channel.get_emitter() {
@@ -38,7 +37,6 @@ pub fn update(state: &mut AppState, message: AppMessage) -> Task<AppMessage> {
         AppMessage::ButtonEmit => {
             state.source = StatusSource::Emit;
             // let channel = state.channel.clone();
-
             // Task::perform(
             //     async move {
             //         if let Some(emitter) = &channel.get_emitter() {
@@ -99,7 +97,6 @@ pub fn update(state: &mut AppState, message: AppMessage) -> Task<AppMessage> {
             //         |msg| msg,
             //     )
             // };
-
             // use iced::futures::StreamExt;
             // let status_task = state
             //     .channel
@@ -127,8 +124,10 @@ pub fn update(state: &mut AppState, message: AppMessage) -> Task<AppMessage> {
 }
 
 pub fn subscription(_: &AppState) -> Subscription<AppMessage> {
-    Subscription::run(|| {
-        let stream = simple_status::stream().unwrap();
-        stream.map(AppMessage::ShowStatus)
+    Subscription::run(|| match simple_status::stream() {
+        Some(stream) => stream.map(AppMessage::ShowStatus).boxed(),
+        None => iced::futures::stream::empty()
+            .map(AppMessage::ShowStatus)
+            .boxed(),
     })
 }
