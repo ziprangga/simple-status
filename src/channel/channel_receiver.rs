@@ -1,13 +1,12 @@
+use futures::stream;
 use tokio::sync::Mutex;
 use tokio::sync::broadcast;
 use tokio::sync::mpsc;
 
-use super::ReceiverHandler;
+use crate::channel::BoxFuture;
+use crate::channel::BoxStream;
+use crate::channel::ReceiverHandler;
 use crate::status::Status;
-use futures::stream;
-
-use super::BoxFuture;
-use super::BoxStream;
 
 #[derive(Debug)]
 pub struct MpscReceiver {

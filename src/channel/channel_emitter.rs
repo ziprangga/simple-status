@@ -2,12 +2,11 @@ use std::sync::Arc;
 use tokio::sync::broadcast;
 use tokio::sync::mpsc;
 
-use super::BroadcastReceiver;
-use super::EmitterHandler;
-use super::Receiver;
+use crate::channel::BoxFuture;
+use crate::channel::BroadcastReceiver;
+use crate::channel::EmitterHandler;
+use crate::channel::Receiver;
 use crate::status::Status;
-
-use super::BoxFuture;
 
 #[derive(Debug, Clone)]
 pub struct MpscEmitter {

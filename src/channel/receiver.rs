@@ -1,10 +1,9 @@
-use crate::status::Status;
+use futures::stream;
 use std::sync::Arc;
 
-use super::BoxFuture;
-use super::BoxStream;
-
-use futures::stream;
+use crate::channel::BoxFuture;
+use crate::channel::BoxStream;
+use crate::status::Status;
 
 // trait for Receiver
 pub trait ReceiverHandler: Send + Sync {

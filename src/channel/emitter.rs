@@ -1,9 +1,8 @@
 use std::sync::Arc;
 
-use super::Receiver;
+use crate::channel::BoxFuture;
+use crate::channel::Receiver;
 use crate::status::Status;
-
-use super::BoxFuture;
 
 // trait for Emitter
 pub trait EmitterHandler: Send + Sync {
