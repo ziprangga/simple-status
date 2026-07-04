@@ -10,14 +10,14 @@ pub fn message_non_emit() -> Status {
 //     status_emit!(ins, Some(emitter), "this is emit");
 // }
 pub fn message_emit() {
-    status_emit!(global, "this is emit");
+    status_emit!("this is emit");
 }
 
 // pub async fn message_emit_async(emitter: &Emitter) {
 //     status_emit!(ins, async, Some(emitter), "this is async emit");
 // }
 pub async fn message_emit_async() {
-    status_emit!(global, async, "this is async emit");
+    status_emit!(async, "this is async emit");
 }
 
 // pub fn message_non_emit_with_option() -> Option<Status> {
@@ -48,7 +48,6 @@ pub async fn message_emit_with_option() {
 
     for current in 0..=total {
         status_emit!(
-            global,
             async,
             stage: "test",
             current: current,

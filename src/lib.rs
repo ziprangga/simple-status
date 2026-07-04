@@ -31,8 +31,10 @@ impl<'a> IntoEmitter<'a> for &'a Emitter {
 /// Initialize the global status channel.
 ///
 /// Call once if want to use the global API/macros.
-pub fn init_global(buffer: usize, kind: ChannelKind) {
-    let _ = CHANNELS.set(init_channels(buffer, kind));
+pub fn init_channels(buffer: usize, kind: ChannelKind) {
+    let (emitter, receiver) = build_channels(buffer, kind);
+    let channel_handler = Channels::new(Some(emitter), Some(receiver));
+    let _ = CHANNELS.set(channel_handler);
 }
 
 /// Initializes a new independent status channel.
@@ -40,8 +42,8 @@ pub fn init_global(buffer: usize, kind: ChannelKind) {
 /// Typically called once when creating your application state, although it may
 /// be called multiple times if need multiple independent `Channels`
 /// instances. This does not initialize or affect the global channel.
-pub fn init_channels(buffer: usize, kind: ChannelKind) -> Channels {
-    let (emitter, receiver) = create_channels(buffer, kind);
+pub fn create_channels(buffer: usize, kind: ChannelKind) -> Channels {
+    let (emitter, receiver) = build_channels(buffer, kind);
     let channel_handler = Channels::new(Some(emitter), Some(receiver));
     channel_handler
 }
@@ -87,7 +89,23 @@ pub fn subscribe() -> Option<Arc<Receiver>> {
 // Instant
 // ==========================
 
-pub fn create_channels(buffer: usize, kind: ChannelKind) -> (Emitter, Receiver) {
+pub async fn emit_status_async(emitter: Option<&Emitter>, status: Status) {
+    if let Some(e) = emitter {
+        e.async_emit(status).await;
+    }
+}
+
+pub fn emit_status_sync(emitter: Option<&Emitter>, status: Status) {
+    if let Some(e) = emitter {
+        e.sync_emit(status);
+    }
+}
+
+// ==========================
+// Channels builder
+// ==========================
+
+fn build_channels(buffer: usize, kind: ChannelKind) -> (Emitter, Receiver) {
     match kind {
         ChannelKind::Mpsc => {
             let (tx, rx) = tokio::sync::mpsc::channel(buffer);
@@ -107,17 +125,5 @@ pub fn create_channels(buffer: usize, kind: ChannelKind) -> (Emitter, Receiver) 
             let receiver: Receiver = BroadcastReceiver::new(persistent_rx).into();
             (emitter, receiver)
         }
-    }
-}
-
-pub async fn emit_status_async(emitter: Option<&Emitter>, status: Status) {
-    if let Some(e) = emitter {
-        e.async_emit(status).await;
-    }
-}
-
-pub fn emit_status_sync(emitter: Option<&Emitter>, status: Status) {
-    if let Some(e) = emitter {
-        e.sync_emit(status);
     }
 }

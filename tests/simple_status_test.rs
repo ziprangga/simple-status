@@ -1,4 +1,4 @@
-use simple_status::{ChannelKind, Emitter, init_channels, status, status_emit};
+use simple_status::{ChannelKind, Emitter, create_channels, status, status_emit};
 
 #[test]
 fn test_status_macro() {
@@ -23,10 +23,10 @@ fn test_status_format_message() {
 
 #[test]
 fn test_mpsc_sync_emit_recv() {
-    let channels = init_channels(10, ChannelKind::Mpsc);
+    let channels = create_channels(10, ChannelKind::Mpsc);
     let emitter = channels.get_emitter().unwrap();
 
-    status_emit!(ins,
+    status_emit!(
         Some(&*emitter),
         message: "sync mpsc",
     );
@@ -37,10 +37,10 @@ fn test_mpsc_sync_emit_recv() {
 
 #[test]
 fn test_broadcast_sync_emit_recv() {
-    let channels = init_channels(10, ChannelKind::Broadcast);
+    let channels = create_channels(10, ChannelKind::Broadcast);
     let emitter = channels.get_emitter().unwrap();
 
-    status_emit!(ins,
+    status_emit!(
         Some(&*emitter),
         message: "sync broadcast",
     );
@@ -54,10 +54,10 @@ fn test_broadcast_sync_emit_recv() {
 
 #[tokio::test]
 async fn test_async_emit_recv() {
-    let channels = init_channels(10, ChannelKind::Mpsc);
+    let channels = create_channels(10, ChannelKind::Mpsc);
     let emitter = channels.get_emitter().unwrap();
 
-    status_emit!(ins,
+    status_emit!(
         async,
         Some(&*emitter),
         message: "async test",
@@ -77,14 +77,14 @@ async fn test_emit_with_none_emitter() {
 
 #[test]
 fn test_macro_with_raw_reference_argument() {
-    let channels = init_channels(10, ChannelKind::Mpsc);
+    let channels = create_channels(10, ChannelKind::Mpsc);
     let emitter = channels.get_emitter().unwrap();
 
     // Create a direct reference &Emitter type to mimic a function argument
     let raw_ref: &Emitter = &*emitter;
 
     // The macro should automatically wrap this reference into Some() using the trait
-    status_emit!(ins,
+    status_emit!(
         raw_ref,
         message: "raw reference test",
     );
@@ -98,14 +98,14 @@ fn test_macro_with_raw_reference_argument() {
 
 #[test]
 fn test_macro_with_option_variable_argument() {
-    let channels = init_channels(10, ChannelKind::Mpsc);
+    let channels = create_channels(10, ChannelKind::Mpsc);
     let emitter = channels.get_emitter().unwrap();
 
     // Create an Option<&Emitter> variable to mimic a function argument
     let option_var: Option<&Emitter> = Some(&*emitter);
 
     // The macro should forward this Option straight through without double-wrapping
-    status_emit!(ins,
+    status_emit!(
         option_var,
         message: "option variable test",
     );
@@ -119,12 +119,12 @@ fn test_macro_with_option_variable_argument() {
 
 #[test]
 fn test_macro_with_raw_reference_format_fallback() {
-    let channels = init_channels(10, ChannelKind::Mpsc);
+    let channels = create_channels(10, ChannelKind::Mpsc);
     let emitter = channels.get_emitter().unwrap();
     let raw_ref: &Emitter = &*emitter;
 
     // Tests that the printf fallback rule also correctly uses the IntoEmitter trait
-    status_emit!(ins, raw_ref, "fallback formatting with raw ref: {}", 100);
+    status_emit!(raw_ref, "fallback formatting with raw ref: {}", 100);
 
     let received = channels.recv_sync().unwrap();
     assert_eq!(
@@ -135,14 +135,14 @@ fn test_macro_with_raw_reference_format_fallback() {
 
 #[tokio::test]
 async fn test_async_macro_with_option_and_raw_ref() {
-    let channels = init_channels(10, ChannelKind::Mpsc);
+    let channels = create_channels(10, ChannelKind::Mpsc);
     let emitter = channels.get_emitter().unwrap();
 
     let raw_ref: &Emitter = &*emitter;
     let option_var: Option<&Emitter> = Some(&*emitter);
 
     // Test async path with raw reference
-    status_emit!(ins,
+    status_emit!(
         async,
         raw_ref,
         message: "async raw ref",
@@ -154,7 +154,7 @@ async fn test_async_macro_with_option_and_raw_ref() {
     );
 
     // Test async path with option variable
-    status_emit!(ins,
+    status_emit!(
         async,
         option_var,
         message: "async option var",
