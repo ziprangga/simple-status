@@ -27,22 +27,6 @@ use std::sync::{Arc, OnceLock};
 
 static CHANNELS: OnceLock<Channels> = OnceLock::new();
 
-pub trait IntoEmitter<'a> {
-    fn into_emitter(self) -> Option<&'a Emitter>;
-}
-
-impl<'a> IntoEmitter<'a> for Option<&'a Emitter> {
-    fn into_emitter(self) -> Option<&'a Emitter> {
-        self
-    }
-}
-
-impl<'a> IntoEmitter<'a> for &'a Emitter {
-    fn into_emitter(self) -> Option<&'a Emitter> {
-        Some(self)
-    }
-}
-
 /// Initialize the global status channel.
 ///
 /// Call once if want to use the global API/macros.
