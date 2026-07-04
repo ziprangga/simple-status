@@ -25,7 +25,7 @@ pub mod __private_helper;
 
 use std::sync::{Arc, OnceLock};
 
-static CHANNELS: OnceLock<Channels> = OnceLock::new();
+static CHANNELS_BUS: OnceLock<Channels> = OnceLock::new();
 
 /// Initialize the global status channel.
 ///
@@ -33,7 +33,7 @@ static CHANNELS: OnceLock<Channels> = OnceLock::new();
 pub fn init_channels(buffer: usize, kind: ChannelKind) {
     let (emitter, receiver) = build_channels(buffer, kind);
     let channel_handler = Channels::new(Some(emitter), Some(receiver));
-    let _ = CHANNELS.set(channel_handler);
+    let _ = CHANNELS_BUS.set(channel_handler);
 }
 
 /// Initializes a new independent status channel.
@@ -54,34 +54,34 @@ pub fn create_channels(buffer: usize, kind: ChannelKind) -> Channels {
 /// Returns the global channel.
 ///
 /// Panics if `init()` has not been called.
-pub fn channels() -> &'static Channels {
-    CHANNELS
+fn channels_bus() -> &'static Channels {
+    CHANNELS_BUS
         .get()
-        .expect("simple_status::init() has not been called")
+        .expect("simple_status::init_channels() has not been called")
 }
 
 pub fn stream() -> Option<BoxStream<'static, Status>> {
-    channels().stream()
+    channels_bus().stream()
 }
 
 pub fn emit_sync(status: Status) {
-    channels().emit_sync(status);
+    channels_bus().emit_sync(status);
 }
 
 pub async fn emit_async(status: Status) {
-    channels().emit_async(status).await;
+    channels_bus().emit_async(status).await;
 }
 
 pub fn recv_sync() -> Option<Status> {
-    channels().recv_sync()
+    channels_bus().recv_sync()
 }
 
 pub async fn recv_async() -> Option<Status> {
-    channels().recv_async().await
+    channels_bus().recv_async().await
 }
 
 pub fn subscribe() -> Option<Arc<Receiver>> {
-    channels().subscribe()
+    channels_bus().subscribe()
 }
 
 // ==========================
