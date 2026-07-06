@@ -14,8 +14,25 @@ use crate::status::Status;
 /// Custom channel implementations implement this trait to integrate with the
 /// library.
 pub trait ReceiverHandler: Send + Sync {
+    /// Receives a status synchronously.
+    ///
+    /// Note:
+    /// This method should return immediately. If no status is available,
+    /// it should return `None` instead of waiting.
     fn try_recv(&self) -> Option<Status>;
+
+    /// Receives a status asynchronously.
+    ///
+    /// Note:
+    /// The returned future is driven by the caller and does not begin
+    /// execution until it is polled.
     fn recv(&self) -> BoxFuture<'_, Option<Status>>;
+
+    /// Creates a stream of received statuses.
+    ///
+    /// Note:
+    /// The returned stream is driven by the caller and yields statuses
+    /// until the receiver is exhausted or the underlying channel is closed.
     fn stream(&self) -> BoxStream<'_, Status>;
 }
 

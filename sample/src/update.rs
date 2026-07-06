@@ -1,121 +1,158 @@
 use iced::Task;
 use iced::{Subscription, futures::StreamExt};
-use simple_status::status;
+use simple_status::{ChannelKind, create_channels};
 
 use crate::state::{AppMessage, AppState, StatusSource};
 use crate::task::{
-    message_emit_async_task, message_emit_task, message_emit_with_option_task,
-    message_non_emit_task, message_non_emit_with_option_task,
+    direct_message_task, emit_async_message_task, emit_sync_message_task,
+    global_emit_async_message_task, global_emit_async_with_progress_task,
+    global_emit_sync_message_task, global_emit_sync_with_progress_task,
+    independent_emit_async_with_progress_task, independent_emit_sync_with_progress_task,
 };
 
 pub fn update(state: &mut AppState, message: AppMessage) -> Task<AppMessage> {
     match message {
-        AppMessage::ButtonEmitAsync => {
-            state.source = StatusSource::EmitAsync;
-            // let channel = state.channel.clone();
-            // Task::perform(
-            //     async move {
-            //         if let Some(emitter) = &channel.get_emitter() {
-            //             message_emit_async_task(emitter).await;
-            //             if let Some(status) = channel.recv_async().await {
-            //                 return AppMessage::ShowStatus(status);
-            //             }
-            //         }
-            //         AppMessage::NoOperations
-            //     },
-            //     |msg| msg,
-            // )
-            Task::perform(
-                async {
-                    message_emit_async_task().await;
-                    AppMessage::NoOperations
-                },
-                |msg| msg,
-            )
-        }
-
-        AppMessage::ButtonEmit => {
-            state.source = StatusSource::Emit;
-            // let channel = state.channel.clone();
-            // Task::perform(
-            //     async move {
-            //         if let Some(emitter) = &channel.get_emitter() {
-            //             message_emit_task(emitter).await;
-            //             if let Some(status) = channel.recv_async().await {
-            //                 return AppMessage::ShowStatus(status);
-            //             }
-            //         }
-            //         AppMessage::NoOperations
-            //     },
-            //     |msg| msg,
-            // )
-            Task::perform(
-                async {
-                    message_emit_task().await;
-                    AppMessage::NoOperations
-                },
-                |msg| msg,
-            )
-        }
-
-        AppMessage::ButtonNonEmit => {
-            state.source = StatusSource::NonEmit;
-            Task::perform(async { message_non_emit_task().await }, move |status| {
-                AppMessage::ShowStatus(status)
-            })
-        }
-
         AppMessage::ButtonDirect => {
             state.source = StatusSource::Direct;
-            state.show_status = status!("this is direct message");
-            Task::none()
-        }
 
-        AppMessage::ButtonOptionNonEmit => {
-            state.source = StatusSource::OptionNonEmit;
             Task::perform(
-                async { message_non_emit_with_option_task().await },
-                move |maybe_status| match maybe_status {
-                    Some(status) => AppMessage::ShowStatus(status),
-                    None => AppMessage::NoOperations,
-                },
+                async { direct_message_task().await },
+                AppMessage::ShowStatus,
             )
         }
 
-        AppMessage::ButtonOptionEmitAsync => {
-            state.source = StatusSource::OptionEmitAsync;
+        AppMessage::ButtonEmitSync => {
+            state.source = StatusSource::EmitSync;
+            let channels = create_channels(100, ChannelKind::Mpsc);
+            let emitter = channels.get_emitter();
+            let emit_task = Task::perform(
+                async move {
+                    emit_sync_message_task(emitter.as_deref()).await;
+                    AppMessage::NoOperations
+                },
+                |msg| msg,
+            );
 
-            // let message = {
-            //     let channel = state.channel.clone();
-            //     Task::perform(
-            //         async move {
-            //             if let Some(emitter) = &channel.get_emitter() {
-            //                 message_emit_with_option_task(Some(&emitter)).await;
-            //             }
-            //             AppMessage::NoOperations
-            //         },
-            //         |msg| msg,
-            //     )
-            // };
-            // use iced::futures::StreamExt;
-            // let status_task = state
-            //     .channel
-            //     .stream()
-            //     .map(|s| Task::stream(s.map(AppMessage::ShowStatus)))
-            //     .unwrap_or_else(Task::none);
+            let status_task = channels
+                .stream()
+                .map(|s| Task::stream(s.map(AppMessage::ShowStatus)))
+                .unwrap_or_else(Task::none);
 
-            // Task::batch(vec![message, status_task])
+            Task::batch(vec![emit_task, status_task])
+        }
+
+        AppMessage::ButtonEmitAsync => {
+            state.source = StatusSource::EmitAsync;
+            let channels = create_channels(100, ChannelKind::Mpsc);
+            let emitter = channels.get_emitter();
+            let emit_task = Task::perform(
+                async move {
+                    emit_async_message_task(emitter.as_deref()).await;
+                    AppMessage::NoOperations
+                },
+                |msg| msg,
+            );
+
+            let stream_task = channels
+                .stream()
+                .map(|s| Task::stream(s.map(AppMessage::ShowStatus)))
+                .unwrap_or_else(Task::none);
+
+            Task::batch(vec![emit_task, stream_task])
+        }
+
+        AppMessage::ButtonGlobalEmitSync => {
+            state.source = StatusSource::GlobalEmitSync;
+
             Task::perform(
                 async {
-                    message_emit_with_option_task().await;
+                    global_emit_sync_message_task().await;
                     AppMessage::NoOperations
                 },
                 |msg| msg,
             )
         }
 
-        AppMessage::ShowStatus(se) => {
-            state.show_status = se;
+        AppMessage::ButtonGlobalEmitAsync => {
+            state.source = StatusSource::GlobalEmitAsync;
+
+            Task::perform(
+                async {
+                    global_emit_async_message_task().await;
+                    AppMessage::NoOperations
+                },
+                |msg| msg,
+            )
+        }
+
+        AppMessage::ButtonIndependentEmitSyncWithProgress => {
+            state.source = StatusSource::IndependentEmitSyncWithProgress;
+            let channels = create_channels(100, ChannelKind::Mpsc);
+            let emitter = channels.get_emitter();
+
+            let emit_task = Task::perform(
+                async move {
+                    independent_emit_sync_with_progress_task(emitter.as_deref()).await;
+                    AppMessage::NoOperations
+                },
+                |msg| msg,
+            );
+
+            let stream_task = channels
+                .stream()
+                .map(|s| Task::stream(s.map(AppMessage::ShowStatus)))
+                .unwrap_or_else(Task::none);
+
+            Task::batch(vec![emit_task, stream_task])
+        }
+
+        AppMessage::ButtonIndependentEmitAsyncWithProgress => {
+            state.source = StatusSource::IndependentEmitAsyncWithProgress;
+            let channels = create_channels(100, ChannelKind::Mpsc);
+            let emitter = channels.get_emitter();
+
+            let emit_task = Task::perform(
+                async move {
+                    independent_emit_async_with_progress_task(emitter.as_deref()).await;
+                    AppMessage::NoOperations
+                },
+                |msg| msg,
+            );
+
+            let stream_task = channels
+                .stream()
+                .map(|s| Task::stream(s.map(AppMessage::ShowStatus)))
+                .unwrap_or_else(Task::none);
+
+            Task::batch(vec![emit_task, stream_task])
+        }
+
+        AppMessage::ButtonGlobalEmitSyncWithProgress => {
+            state.source = StatusSource::GlobalEmitSyncWithProgress;
+
+            Task::perform(
+                async {
+                    global_emit_sync_with_progress_task().await;
+                    AppMessage::NoOperations
+                },
+                |msg| msg,
+            )
+        }
+
+        AppMessage::ButtonGlobalEmitAsyncWithProgress => {
+            state.source = StatusSource::GlobalEmitAsyncWithProgress;
+
+            Task::perform(
+                async {
+                    global_emit_async_with_progress_task().await;
+                    AppMessage::NoOperations
+                },
+                |msg| msg,
+            )
+        }
+
+        AppMessage::ShowStatus(status) => {
+            state.show_status = status;
             Task::none()
         }
 

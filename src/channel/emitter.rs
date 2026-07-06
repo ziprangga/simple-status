@@ -13,8 +13,24 @@ use crate::status::Status;
 /// Library users typically interact with `Emitter` instead of implementing this
 /// trait unless they are creating a custom transport.
 pub trait EmitterHandler: Send + Sync {
+    /// Emits a status synchronously.
+    ///
+    /// Note:
+    /// This method should complete the emission before returning.
     fn try_emit(&self, status: Status);
+
+    /// Emits a status asynchronously.
+    ///
+    /// Note:
+    /// The returned future is driven by the caller and does not begin
+    /// execution until it is polled.
     fn emit(&self, status: Status) -> BoxFuture<'_, ()>;
+
+    /// Creates a new receiver from this emitter, if supported.
+    ///
+    /// Note:
+    /// Implementations that do not support creating additional receivers
+    /// should return `None`.
     fn subscribe(&self) -> Option<Arc<Receiver>>;
 }
 
@@ -38,12 +54,12 @@ impl Emitter {
     }
 
     /// Emits a status synchronously.
-    pub fn sync_emit(&self, status: Status) {
+    pub fn emit_sync(&self, status: Status) {
         self.emitter.try_emit(status);
     }
 
     /// Emits a status asynchronously.
-    pub async fn async_emit(&self, status: Status) {
+    pub async fn emit_async(&self, status: Status) {
         self.emitter.emit(status).await;
     }
 

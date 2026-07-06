@@ -84,7 +84,7 @@ macro_rules! status_emit {
 
     // Instance Async (with key-value pairs)
     (async, $emitter:expr, $(stage: $stage:expr,)? $(current: $current:expr,)? $(total: $total:expr,)? $(message: $message:expr,)? $(path: $path:expr $(,)?)?) => {{
-        $crate::emit_status_async(
+        $crate::status_emit_async(
             $crate::__into_emitter!($emitter),
             $crate::status!($(stage: $stage,)? $(current: $current,)? $(total: $total,)? $(message: $message,)? $(path: $path,)?)
         ).await;
@@ -93,7 +93,7 @@ macro_rules! status_emit {
     // Instance Async (with string format / raw arguments)
     // Triggered when the second argument is an expression but the remaining tokens are format strings
     (async, $emitter:expr, $fmt:expr, $($arg:tt)+) => {{
-        $crate::emit_status_async(
+        $crate::status_emit_async(
             $crate::__into_emitter!($emitter),
             $crate::status!($fmt, $($arg)+)
         ).await;
@@ -127,7 +127,7 @@ macro_rules! status_emit {
 
     // Instance Sync (with key-value pairs)
     ($emitter:expr, $(stage: $stage:expr,)? $(current: $current:expr,)? $(total: $total:expr,)? $(message: $message:expr,)? $(path: $path:expr $(,)?)?) => {{
-        $crate::emit_status_sync(
+        $crate::status_emit_sync(
             $crate::__into_emitter!($emitter),
             $crate::status!($(stage: $stage,)? $(current: $current,)? $(total: $total,)? $(message: $message,)? $(path: $path,)?)
         );
@@ -135,7 +135,7 @@ macro_rules! status_emit {
 
     // Instance Sync (with string format / raw arguments)
     ($emitter:expr, $fmt:expr, $($arg:tt)+) => {{
-        $crate::emit_status_sync(
+        $crate::status_emit_sync(
             $crate::__into_emitter!($emitter),
             $crate::status!($fmt, $($arg)+)
         );

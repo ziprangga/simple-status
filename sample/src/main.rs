@@ -25,8 +25,8 @@ fn main() {
         .title("Sample Simple Status")
         .position(window::Position::Centered)
         .window(window::Settings {
-            size: Size::new(600.0, 100.0),
-            min_size: Some(Size::new(600.0, 100.0)),
+            size: Size::new(1000.0, 100.0),
+            min_size: Some(Size::new(1000.0, 100.0)),
             resizable: true,
             decorations: true,
             ..Default::default()

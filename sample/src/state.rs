@@ -2,24 +2,40 @@ use simple_status::{ChannelKind, Status, init_channels};
 
 #[derive(Debug, Clone, Copy, Default)]
 pub enum StatusSource {
-    EmitAsync,
-    Emit,
-    NonEmit,
     #[default]
     Direct,
-    OptionNonEmit,
-    OptionEmitAsync,
+
+    EmitSync,
+    EmitAsync,
+
+    GlobalEmitSync,
+    GlobalEmitAsync,
+
+    IndependentEmitSyncWithProgress,
+    IndependentEmitAsyncWithProgress,
+
+    GlobalEmitSyncWithProgress,
+    GlobalEmitAsyncWithProgress,
 }
 
 #[derive(Debug, Clone)]
 pub enum AppMessage {
     ShowStatus(Status),
-    ButtonEmitAsync,
-    ButtonEmit,
-    ButtonNonEmit,
+
     ButtonDirect,
-    ButtonOptionNonEmit,
-    ButtonOptionEmitAsync,
+
+    ButtonEmitSync,
+    ButtonEmitAsync,
+
+    ButtonGlobalEmitSync,
+    ButtonGlobalEmitAsync,
+
+    ButtonIndependentEmitSyncWithProgress,
+    ButtonIndependentEmitAsyncWithProgress,
+
+    ButtonGlobalEmitSyncWithProgress,
+    ButtonGlobalEmitAsyncWithProgress,
+
     NoOperations,
 }
 
@@ -27,7 +43,6 @@ pub enum AppMessage {
 pub struct AppState {
     pub show_status: Status,
     pub source: StatusSource,
-    // pub channel: Channels,
 }
 
 impl AppState {
@@ -37,7 +52,6 @@ impl AppState {
         Self {
             show_status: Status::default(),
             source: StatusSource::default(),
-            // channel: channel,
         }
     }
 

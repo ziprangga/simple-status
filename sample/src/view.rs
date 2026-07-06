@@ -10,12 +10,19 @@ use crate::state::{AppMessage, AppState, StatusSource};
 
 pub fn view(state: &AppState) -> Element<'_, AppMessage> {
     let color = match state.source {
-        StatusSource::EmitAsync => Color::from_rgb8(255, 0, 0),
-        StatusSource::Emit => Color::from_rgb8(0, 255, 0),
-        StatusSource::NonEmit => Color::from_rgb8(0, 0, 255),
         StatusSource::Direct => Color::from_rgb8(255, 255, 0),
-        StatusSource::OptionNonEmit => Color::from_rgb8(0, 255, 255),
-        StatusSource::OptionEmitAsync => Color::from_rgb8(255, 0, 255),
+
+        StatusSource::EmitSync => Color::from_rgb8(0, 255, 0),
+        StatusSource::EmitAsync => Color::from_rgb8(255, 0, 0),
+
+        StatusSource::GlobalEmitSync => Color::from_rgb8(0, 128, 255),
+        StatusSource::GlobalEmitAsync => Color::from_rgb8(128, 0, 255),
+
+        StatusSource::IndependentEmitSyncWithProgress => Color::from_rgb8(0, 200, 100),
+        StatusSource::IndependentEmitAsyncWithProgress => Color::from_rgb8(100, 200, 0),
+
+        StatusSource::GlobalEmitSyncWithProgress => Color::from_rgb8(0, 200, 200),
+        StatusSource::GlobalEmitAsyncWithProgress => Color::from_rgb8(200, 0, 200),
     };
 
     let show_status_message = Container::new(
@@ -29,74 +36,80 @@ pub fn view(state: &AppState) -> Element<'_, AppMessage> {
     .align_x(alignment::Horizontal::Center)
     .align_y(alignment::Vertical::Center);
 
-    let button_emit_async = Container::new(
-        button(text("Click me (async emit)").size(12))
-            .custom_style(ButtonThemeStyle::Default)
-            .width(Length::Fill)
-            .on_press(AppMessage::ButtonEmitAsync),
-    )
-    .width(Length::Fill)
-    .align_x(alignment::Horizontal::Center)
-    .align_y(alignment::Vertical::Center);
-
-    let button_emit = Container::new(
-        button(text("Click me (emit)").size(12))
-            .custom_style(ButtonThemeStyle::CustomRounded)
-            .width(Length::Fill)
-            .on_press(AppMessage::ButtonEmit),
-    )
-    .width(Length::Fill)
-    .align_x(alignment::Horizontal::Center)
-    .align_y(alignment::Vertical::Center);
-
-    let button_non_emit = Container::new(
-        button(text("Click me (non emit)").size(12))
-            .custom_style(ButtonThemeStyle::BlankBorder)
-            .width(Length::Fill)
-            .on_press(AppMessage::ButtonNonEmit),
-    )
-    .width(Length::Fill)
-    .align_x(alignment::Horizontal::Center)
-    .align_y(alignment::Vertical::Center);
-
     let button_direct = Container::new(
-        button(text("Click me (direct)").size(12))
-            .custom_style(ButtonThemeStyle::Danger)
+        button(text("Direct").size(12))
+            .custom_style(ButtonThemeStyle::Default)
             .width(Length::Fill)
             .on_press(AppMessage::ButtonDirect),
-    )
-    .width(Length::Fill)
-    .align_x(alignment::Horizontal::Center)
-    .align_y(alignment::Vertical::Center);
+    );
 
-    let button_option_non_emit = Container::new(
-        button(text("Click me (option non emit)").size(12))
+    let button_emit_sync = Container::new(
+        button(text("Independent Sync").size(12))
+            .custom_style(ButtonThemeStyle::CustomRounded)
+            .width(Length::Fill)
+            .on_press(AppMessage::ButtonEmitSync),
+    );
+
+    let button_emit_async = Container::new(
+        button(text("Independent Async").size(12))
+            .custom_style(ButtonThemeStyle::BlankBorder)
+            .width(Length::Fill)
+            .on_press(AppMessage::ButtonEmitAsync),
+    );
+
+    let button_global_emit_sync = Container::new(
+        button(text("Global Sync").size(12))
             .custom_style(ButtonThemeStyle::Custom)
             .width(Length::Fill)
-            .on_press(AppMessage::ButtonOptionNonEmit),
-    )
-    .width(Length::Fill)
-    .align_x(alignment::Horizontal::Center)
-    .align_y(alignment::Vertical::Center);
+            .on_press(AppMessage::ButtonGlobalEmitSync),
+    );
 
-    let button_option_async_emit = Container::new(
-        button(text("Click me (option async emit)").size(12))
+    let button_global_emit_async = Container::new(
+        button(text("Global Async").size(12))
             .custom_style(ButtonThemeStyle::Default)
             .width(Length::Fill)
-            .on_press(AppMessage::ButtonOptionEmitAsync),
-    )
-    .width(Length::Fill)
-    .align_x(alignment::Horizontal::Center)
-    .align_y(alignment::Vertical::Center);
+            .on_press(AppMessage::ButtonGlobalEmitAsync),
+    );
+
+    let button_independent_sync_progress = Container::new(
+        button(text("Independent Sync Progress").size(12))
+            .custom_style(ButtonThemeStyle::BlankBorder)
+            .width(Length::Fill)
+            .on_press(AppMessage::ButtonIndependentEmitSyncWithProgress),
+    );
+
+    let button_independent_async_progress = Container::new(
+        button(text("Independent Async Progress").size(12))
+            .custom_style(ButtonThemeStyle::Danger)
+            .width(Length::Fill)
+            .on_press(AppMessage::ButtonIndependentEmitAsyncWithProgress),
+    );
+
+    let button_global_sync_progress = Container::new(
+        button(text("Global Sync Progress").size(12))
+            .custom_style(ButtonThemeStyle::Default)
+            .width(Length::Fill)
+            .on_press(AppMessage::ButtonGlobalEmitSyncWithProgress),
+    );
+
+    let button_global_async_progress = Container::new(
+        button(text("Global Async Progress").size(12))
+            .custom_style(ButtonThemeStyle::CustomRounded)
+            .width(Length::Fill)
+            .on_press(AppMessage::ButtonGlobalEmitAsyncWithProgress),
+    );
 
     let row_button = Container::new(
         Row::new()
-            .push(button_emit_async)
-            .push(button_emit)
-            .push(button_non_emit)
             .push(button_direct)
-            .push(button_option_non_emit)
-            .push(button_option_async_emit)
+            .push(button_emit_sync)
+            .push(button_emit_async)
+            .push(button_global_emit_sync)
+            .push(button_global_emit_async)
+            .push(button_independent_sync_progress)
+            .push(button_independent_async_progress)
+            .push(button_global_sync_progress)
+            .push(button_global_async_progress)
             .spacing(10)
             .width(Length::Fill)
             .align_y(alignment::Vertical::Center),

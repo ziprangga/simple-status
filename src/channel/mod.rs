@@ -125,7 +125,7 @@ impl Channels {
     /// If no emitter exists, this method does nothing.
     pub fn emit_sync(&self, status: Status) {
         if let Some(e) = &self.emitter {
-            e.sync_emit(status);
+            e.emit_sync(status);
         }
     }
 
@@ -137,7 +137,7 @@ impl Channels {
     /// If no emitter exists, this method completes immediately.
     pub async fn emit_async(&self, status: Status) {
         if let Some(e) = &self.emitter {
-            e.async_emit(status).await;
+            e.emit_async(status).await;
         }
     }
 

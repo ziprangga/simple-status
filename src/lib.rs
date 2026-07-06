@@ -156,15 +156,15 @@ pub fn subscribe() -> Option<Arc<Receiver>> {
 // Note:
 // These functions allow the macros to emit through either an explicit emitter
 // or no emitter (`None`) without duplicating logic.
-pub async fn emit_status_async(emitter: Option<&Emitter>, status: Status) {
+pub fn status_emit_sync(emitter: Option<&Emitter>, status: Status) {
     if let Some(e) = emitter {
-        e.async_emit(status).await;
+        e.emit_sync(status);
     }
 }
 
-pub fn emit_status_sync(emitter: Option<&Emitter>, status: Status) {
+pub async fn status_emit_async(emitter: Option<&Emitter>, status: Status) {
     if let Some(e) = emitter {
-        e.sync_emit(status);
+        e.emit_async(status).await;
     }
 }
 

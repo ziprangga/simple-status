@@ -71,8 +71,8 @@ async fn test_async_emit_recv() {
 async fn test_emit_with_none_emitter() {
     let s = status!("no emitter");
 
-    simple_status::emit_status_sync(None, s.clone());
-    simple_status::emit_status_async(None, s).await;
+    simple_status::status_emit_sync(None, s.clone());
+    simple_status::status_emit_async(None, s).await;
 }
 
 #[test]
