@@ -4,13 +4,29 @@ use crate::channel::BoxFuture;
 use crate::channel::Receiver;
 use crate::status::Status;
 
-// trait for Emitter
+/// Trait implemented by emitter backends.
+///
+/// Doc:
+/// Defines the low-level interface used by `Emitter`.
+///
+/// Note:
+/// Library users typically interact with `Emitter` instead of implementing this
+/// trait unless they are creating a custom transport.
 pub trait EmitterHandler: Send + Sync {
     fn try_emit(&self, status: Status);
     fn emit(&self, status: Status) -> BoxFuture<'_, ()>;
     fn subscribe(&self) -> Option<Arc<Receiver>>;
 }
 
+/// Type-erased status emitter.
+///
+/// Doc:
+/// Provides a uniform API over any type implementing
+/// `EmitterHandler`.
+///
+/// Note:
+/// Uses dynamic dispatch (`Arc<dyn EmitterHandler>`) so different emitter
+/// implementations share the same public interface.
 #[derive(Clone)]
 pub struct Emitter {
     emitter: Arc<dyn EmitterHandler>,
@@ -21,14 +37,17 @@ impl Emitter {
         Self { emitter }
     }
 
+    /// Emits a status synchronously.
     pub fn sync_emit(&self, status: Status) {
         self.emitter.try_emit(status);
     }
 
+    /// Emits a status asynchronously.
     pub async fn async_emit(&self, status: Status) {
         self.emitter.emit(status).await;
     }
 
+    /// Creates a new receiver from this emitter, if supported.
     pub fn subscribe(&self) -> Option<Arc<Receiver>> {
         self.emitter.subscribe()
     }

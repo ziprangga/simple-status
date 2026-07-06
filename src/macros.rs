@@ -1,12 +1,31 @@
+// Standardizes the provided emitter expression by converting it
+// into the required emitter type via the internal `IntoEmitter` trait.
 #[doc(hidden)]
 #[macro_export]
 #[clippy::format_args]
 macro_rules! __into_emitter {
-    // Standardizes the provided emitter expression by converting it
-    // into the required emitter type via the internal `IntoEmitter` trait.
     ($emitter:expr) => {{ $crate::__private_helper::IntoEmitter::into_emitter($emitter) }};
 }
 
+/// Constructs a [`Status`] from the provided fields.
+///
+/// Doc:
+/// `status!` provides a concise way to create a `Status` without manually
+/// using `Event::builder()`.
+///
+/// Supported fields:
+/// - `stage`
+/// - `current`
+/// - `total`
+/// - `message`
+/// - `path`
+///
+/// When invoked with formatting arguments, the formatted string becomes the
+/// status message.
+///
+/// Note:
+/// All fields are optional. Only the fields provided are included in the
+/// resulting `Status`.
 #[macro_export]
 #[clippy::format_args]
 macro_rules! status {
@@ -40,6 +59,22 @@ macro_rules! status {
 
 }
 
+/// Constructs and emits a [`Status`].
+///
+/// Doc:
+/// `status_emit!` combines `status!` with the appropriate emit function,
+/// reducing the boilerplate required to report status updates.
+///
+/// The macro supports:
+/// - synchronous emission
+/// - asynchronous emission
+/// - global emission
+/// - emission through a specific `Emitter`
+///
+/// Note:
+/// This macro is provided purely for ergonomics. It does not introduce
+/// additional behavior beyond constructing a `Status` and forwarding it to the
+/// corresponding emit function.
 #[macro_export]
 #[clippy::format_args]
 macro_rules! status_emit {

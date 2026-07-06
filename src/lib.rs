@@ -1,3 +1,48 @@
+// Licensed under the Apache License, Version 2.0 <LICENSE-APACHE or
+// https://www.apache.org/licenses/LICENSE-2.0> or the MIT license
+// <LICENSE-MIT or https://opensource.org/licenses/MIT>, at your
+// option. This file may not be copied, modified, or distributed
+// except according to those terms.
+
+//! Doc:
+//! `simple-status` provides a lightweight status reporting system for
+//! applications.
+//!
+//! The crate is built around three core concepts:
+//!
+//! - `Status` represents a single status update.
+//! - `Emitter` sends status updates.
+//! - `Receiver` receives status updates.
+//!
+//! The crate supports both:
+//!
+//! - Independent channel instances created with `create_channels()`.
+//! - A global channel initialized with `init_channels()` for use with the
+//!   provided macros.
+//!
+//! Built-in channel implementations include:
+//! - MPSC
+//! - Broadcast
+//!
+//! Note:
+//! Most users only need the public API re-exported from this crate root.
+//! Internal modules exist to organize the implementation and are not intended
+//! to be used directly.
+//!
+//! The crate intentionally separates three responsibilities:
+//!
+//! - `Status` describes state.
+//! - Channels transport state.
+//! - Macros provide a concise interface for constructing and emitting state.
+//!
+//! This separation keeps the data model, transport layer, and ergonomics
+//! independent, allowing applications to use only the components they need.
+//!
+//! The crate is designed around abstractions (`Emitter`, `Receiver`, and
+//! `Status`) so that different communication mechanisms can share a common
+//! interface.
+//!..
+
 mod channel;
 mod status;
 
@@ -27,20 +72,33 @@ use std::sync::{Arc, OnceLock};
 
 static CHANNELS_BUS: OnceLock<Channels> = OnceLock::new();
 
-/// Initialize the global status channel.
+/// Initializes the global channel.
 ///
-/// Call once if want to use the global API/macros.
+/// Doc:
+/// Creates the global channel used by the crate-level functions and macros,
+/// such as `status_emit!()`.
+///
+/// This function should be called once during application initialization.
+///
+/// Note:
+/// Subsequent calls have no effect because the global channel is stored in a
+/// `OnceLock`.
 pub fn init_channels(buffer: usize, kind: ChannelKind) {
     let (emitter, receiver) = build_channels(buffer, kind);
     let channel_handler = Channels::new(Some(emitter), Some(receiver));
     let _ = CHANNELS_BUS.set(channel_handler);
 }
 
-/// Initializes a new independent status channel.
+/// Creates an independent channel pair.
 ///
-/// Typically called once when creating your application state, although it may
-/// be called multiple times if need multiple independent `Channels`
-/// instances. This does not initialize or affect the global channel.
+/// Doc:
+/// Returns a new `Channels` instance containing an emitter and receiver.
+///
+/// Unlike `init_channels()`, this function does not modify the global state.
+///
+/// Note:
+/// Use this when an application requires isolated communication channels or
+/// multiple independent status streams.
 pub fn create_channels(buffer: usize, kind: ChannelKind) -> Channels {
     let (emitter, receiver) = build_channels(buffer, kind);
     let channel_handler = Channels::new(Some(emitter), Some(receiver));
@@ -48,12 +106,16 @@ pub fn create_channels(buffer: usize, kind: ChannelKind) -> Channels {
 }
 
 // =====================================
-// Global
+// Global API
 // =====================================
-
-/// Returns the global channel.
-///
-/// Panics if `init()` has not been called.
+//
+// Doc:
+// These functions operate on the channel initialized by
+// `init_channels()`.
+//
+// Note:
+// Calling any of these functions before `init_channels()` will panic because
+// no global channel exists.
 fn channels_bus() -> &'static Channels {
     CHANNELS_BUS
         .get()
@@ -85,9 +147,15 @@ pub fn subscribe() -> Option<Arc<Receiver>> {
 }
 
 // ==========================
-// Instant
+// Direct emitter helpers
 // ==========================
-
+//
+// Doc:
+// Internal helpers used by the public macros.
+//
+// Note:
+// These functions allow the macros to emit through either an explicit emitter
+// or no emitter (`None`) without duplicating logic.
 pub async fn emit_status_async(emitter: Option<&Emitter>, status: Status) {
     if let Some(e) = emitter {
         e.async_emit(status).await;
@@ -103,7 +171,14 @@ pub fn emit_status_sync(emitter: Option<&Emitter>, status: Status) {
 // ==========================
 // Channels builder
 // ==========================
-
+/// Creates the built-in channel implementation.
+///
+/// Note:
+/// This function is the single location responsible for constructing the
+/// crate's default channel adapters from a `ChannelKind`.
+///
+/// Keeping construction centralized ensures both `init_channels()` and
+/// `create_channels()` always produce identical channel configurations.
 fn build_channels(buffer: usize, kind: ChannelKind) -> (Emitter, Receiver) {
     match kind {
         ChannelKind::Mpsc => {

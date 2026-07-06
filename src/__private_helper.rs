@@ -1,5 +1,9 @@
-// This module is for internal macro use only.
-// Do not use these items directly in your code.
+// Doc:
+// Internal helpers used exclusively by the crate's procedural interface
+// (macros).
+//
+// Note:
+// These items are not part of the public API and may change without notice.
 #[doc(hidden)]
 mod __private {
     use crate::Emitter;

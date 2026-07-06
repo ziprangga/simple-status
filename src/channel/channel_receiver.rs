@@ -1,3 +1,24 @@
+//! Doc:
+//! Provides the built-in channel implementations for the communication layer.
+//!
+//! These implementations adapt Tokio channel types to the generic
+//! `EmitterHandler` and `ReceiverHandler` interfaces.
+//!
+//! Built-in implementations:
+//! - `MpscReceiver`
+//! - `BroadcastReceiver`
+//!
+//! Note:
+//! These implementations are provided as the crate's default channel adapters.
+//! They are conveniences, not requirements. Applications may implement
+//! `EmitterHandler` and `ReceiverHandler` for their own transports if different
+//! communication mechanisms are needed.
+//!
+//! The built-in implementations intentionally remain thin adapters over Tokio
+//! channels. They do not add buffering, retries, filtering, or other behavior.
+//! Their sole responsibility is to translate Tokio channel operations into the
+//! crate's generic channel interfaces.
+//!..
 use futures::stream;
 use tokio::sync::Mutex;
 use tokio::sync::broadcast;
@@ -8,6 +29,10 @@ use crate::channel::BoxStream;
 use crate::channel::ReceiverHandler;
 use crate::status::Status;
 
+/// Receives `Status` values from a Tokio MPSC channel.
+///
+/// Doc:
+/// Wraps `tokio::sync::mpsc::Receiver` as a `ReceiverHandler`.
 #[derive(Debug)]
 pub struct MpscReceiver {
     inner: Mutex<mpsc::Receiver<Status>>,
@@ -37,6 +62,14 @@ impl ReceiverHandler for MpscReceiver {
     }
 }
 
+/// Receives `Status` values from a Tokio broadcast channel.
+///
+/// Doc:
+/// Wraps `tokio::sync::broadcast::Receiver` as a `ReceiverHandler`.
+///
+/// Note:
+/// Lagged messages are skipped automatically until the next available status is
+/// received.
 #[derive(Debug)]
 pub struct BroadcastReceiver {
     inner: Mutex<broadcast::Receiver<Status>>,
