@@ -6,11 +6,8 @@ publish = false
 
 [dependencies]
 simple-status = { path = ".." }
-iced = { git = "https://github.com/ziprangga/iced.git", features = [
-    "image-without-codecs",
+iced = { version = "0.14", features = [
     "tokio",
-    "canvas",
     "wgpu",
-    "advanced",
 ] }
 tokio = "1"

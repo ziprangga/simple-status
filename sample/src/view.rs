@@ -1,11 +1,11 @@
 use iced::widget::{Column, Row};
 use iced::{
     Color, alignment,
-    widget::{Container, text},
+    widget::{Container, button, text},
 };
 use iced::{Element, Length};
 
-use crate::button_style::*;
+use crate::button_style::{ButtonThemeStyle, CustomStyle};
 use crate::state::{AppMessage, AppState, StatusSource};
 
 pub fn view(state: &AppState) -> Element<'_, AppMessage> {
@@ -30,78 +30,60 @@ pub fn view(state: &AppState) -> Element<'_, AppMessage> {
     .align_y(alignment::Vertical::Center);
 
     let button_emit_async = Container::new(
-        CustomButton::new("Click me (async emit)")
-            .text_align_x(alignment::Horizontal::Center)
-            .text_align_y(alignment::Vertical::Center)
+        button(text("Click me (async emit)").size(12))
+            .custom_style(ButtonThemeStyle::Default)
             .width(Length::Fill)
-            .on_press(AppMessage::ButtonEmitAsync)
-            .style(danger_style)
-            .view(),
+            .on_press(AppMessage::ButtonEmitAsync),
     )
     .width(Length::Fill)
     .align_x(alignment::Horizontal::Center)
     .align_y(alignment::Vertical::Center);
 
     let button_emit = Container::new(
-        CustomButton::new("Click me (emit)")
-            .text_align_x(alignment::Horizontal::Center)
-            .text_align_y(alignment::Vertical::Center)
+        button(text("Click me (emit)").size(12))
+            .custom_style(ButtonThemeStyle::CustomRounded)
             .width(Length::Fill)
-            .on_press(AppMessage::ButtonEmit)
-            .style(custom_btn_style)
-            .view(),
+            .on_press(AppMessage::ButtonEmit),
     )
     .width(Length::Fill)
     .align_x(alignment::Horizontal::Center)
     .align_y(alignment::Vertical::Center);
 
     let button_non_emit = Container::new(
-        CustomButton::new("Click me (non emit)")
-            .text_align_x(alignment::Horizontal::Center)
-            .text_align_y(alignment::Vertical::Center)
+        button(text("Click me (non emit)").size(12))
+            .custom_style(ButtonThemeStyle::BlankBorder)
             .width(Length::Fill)
-            .on_press(AppMessage::ButtonNonEmit)
-            .style(danger_style)
-            .view(),
+            .on_press(AppMessage::ButtonNonEmit),
     )
     .width(Length::Fill)
     .align_x(alignment::Horizontal::Center)
     .align_y(alignment::Vertical::Center);
 
     let button_direct = Container::new(
-        CustomButton::new("Click me (direct)")
-            .text_align_x(alignment::Horizontal::Center)
-            .text_align_y(alignment::Vertical::Center)
+        button(text("Click me (direct)").size(12))
+            .custom_style(ButtonThemeStyle::Danger)
             .width(Length::Fill)
-            .on_press(AppMessage::ButtonDirect)
-            .style(custom_btn_style)
-            .view(),
+            .on_press(AppMessage::ButtonDirect),
     )
     .width(Length::Fill)
     .align_x(alignment::Horizontal::Center)
     .align_y(alignment::Vertical::Center);
 
     let button_option_non_emit = Container::new(
-        CustomButton::new("Click me (option non emit)")
-            .text_align_x(alignment::Horizontal::Center)
-            .text_align_y(alignment::Vertical::Center)
+        button(text("Click me (option non emit)").size(12))
+            .custom_style(ButtonThemeStyle::Custom)
             .width(Length::Fill)
-            .on_press(AppMessage::ButtonOptionNonEmit)
-            .style(custom_btn_style)
-            .view(),
+            .on_press(AppMessage::ButtonOptionNonEmit),
     )
     .width(Length::Fill)
     .align_x(alignment::Horizontal::Center)
     .align_y(alignment::Vertical::Center);
 
     let button_option_async_emit = Container::new(
-        CustomButton::new("Click me (option async emit)")
-            .text_align_x(alignment::Horizontal::Center)
-            .text_align_y(alignment::Vertical::Center)
+        button(text("Click me (option async emit)").size(12))
+            .custom_style(ButtonThemeStyle::Default)
             .width(Length::Fill)
-            .on_press(AppMessage::ButtonOptionEmitAsync)
-            .style(custom_btn_style)
-            .view(),
+            .on_press(AppMessage::ButtonOptionEmitAsync),
     )
     .width(Length::Fill)
     .align_x(alignment::Horizontal::Center)

@@ -1,194 +1,44 @@
-use iced::widget::button::{Status, Style};
-use iced::widget::{Button, Text};
-use iced::{Background, Border, Color, Padding, Shadow};
-use iced::{Element, Length, Theme, alignment};
+use iced::Background;
+use iced::Border;
+use iced::Color;
+use iced::Shadow;
+use iced::Theme;
+use iced::widget::Button;
+use iced::widget::button::Status;
+use iced::widget::button::Style;
 
-const DEFAULT_PADDING: Padding = Padding {
-    top: 5.0,
-    bottom: 5.0,
-    right: 10.0,
-    left: 10.0,
-};
-
-enum ButtonContent {
-    Text(BtnText),
-    Image(BtnImage),
-}
-struct BtnText {
-    label: String,
-    text_align_x: alignment::Horizontal,
-    text_align_y: alignment::Vertical,
-    text_size: u32,
-    text_color: Option<Color>,
+pub trait CustomStyle<'a, M> {
+    fn custom_style(self, style: ButtonThemeStyle) -> Self;
 }
 
-struct BtnImage {
-    image: iced::widget::Image,
-    img_width: Length,
-    img_height: Length,
-}
-
-type StyleFn = dyn Fn(&Theme, Status) -> Style;
-pub struct CustomButton<M> {
-    content: ButtonContent,
-    on_press: Option<M>,
-    width: Length,
-    height: Option<Length>,
-    padding: Padding,
-    style_fn: Option<Box<StyleFn>>,
-}
-
-impl<M: 'static + Clone> CustomButton<M> {
-    pub fn new(label: impl Into<String>) -> Self {
-        Self {
-            content: ButtonContent::Text(BtnText {
-                label: label.into(),
-                text_size: 12,
-                text_color: None,
-                text_align_x: alignment::Horizontal::Center,
-                text_align_y: alignment::Vertical::Center,
-            }),
-            on_press: None,
-            width: Length::Fill,
-            height: None,
-            padding: DEFAULT_PADDING,
-            style_fn: Some(Box::new(default_style)),
-        }
-    }
-
-    pub fn image(image: iced::widget::Image) -> Self {
-        Self {
-            content: ButtonContent::Image(BtnImage {
-                image,
-                img_width: Length::Fill,
-                img_height: Length::Fill,
-            }),
-            on_press: None,
-            width: Length::Fill,
-            height: None,
-            padding: DEFAULT_PADDING,
-            style_fn: Some(Box::new(default_style)),
-        }
-    }
-
-    // =================================
-    pub fn text_size(mut self, size: u32) -> Self {
-        if let ButtonContent::Text(ref mut t) = self.content {
-            t.text_size = size;
-        }
-        self
-    }
-    pub fn text_color(mut self, color: Color) -> Self {
-        if let ButtonContent::Text(ref mut t) = self.content {
-            t.text_color = Some(color);
-        }
-        self
-    }
-
-    pub fn text_align_x(mut self, align: alignment::Horizontal) -> Self {
-        if let ButtonContent::Text(ref mut t) = self.content {
-            t.text_align_x = align;
-        }
-        self
-    }
-
-    pub fn text_align_y(mut self, align: alignment::Vertical) -> Self {
-        if let ButtonContent::Text(ref mut t) = self.content {
-            t.text_align_y = align;
-        }
-        self
-    }
-
-    // =================================
-
-    pub fn img_width(mut self, width: Length) -> Self {
-        if let ButtonContent::Image(ref mut img) = self.content {
-            img.img_width = width;
-        }
-        self
-    }
-
-    pub fn img_height(mut self, height: Length) -> Self {
-        if let ButtonContent::Image(ref mut img) = self.content {
-            img.img_height = height;
-        }
-        self
-    }
-
-    // =================================
-    pub fn on_press(mut self, msg: M) -> Self {
-        self.on_press = Some(msg);
-        self
-    }
-
-    pub fn width(mut self, width: Length) -> Self {
-        self.width = width;
-        self
-    }
-
-    pub fn height(mut self, height: Length) -> Self {
-        self.height = Some(height);
-        self
-    }
-
-    pub fn padding(mut self, padding: impl Into<Padding>) -> Self {
-        self.padding = padding.into();
-        self
-    }
-
-    pub fn style<F>(mut self, style_fn: F) -> Self
-    where
-        F: Fn(&Theme, Status) -> Style + 'static,
-    {
-        self.style_fn = Some(Box::new(style_fn));
-        self
-    }
-
-    pub fn view(self) -> Element<'static, M> {
-        let content_btn: Element<'static, M> = match self.content {
-            ButtonContent::Text(btn_text) => {
-                let mut txt = Text::new(btn_text.label)
-                    .size(btn_text.text_size)
-                    .align_x(btn_text.text_align_x)
-                    .align_y(btn_text.text_align_y)
-                    .width(self.width);
-
-                if self.style_fn.is_none()
-                    && let Some(color) = btn_text.text_color
-                {
-                    txt = txt.color(color);
-                }
-
-                txt.into()
-            }
-            ButtonContent::Image(btn_img) => btn_img
-                .image
-                .width(btn_img.img_width)
-                .height(btn_img.img_height)
-                .into(),
-        };
-
-        let mut btn = Button::new(content_btn)
-            .width(self.width)
-            .padding(self.padding);
-
-        if let Some(h) = self.height {
-            btn = btn.height(h);
-        }
-
-        if let Some(msg) = &self.on_press {
-            btn = btn.on_press(msg.clone());
-        }
-
-        if let Some(style_fn) = self.style_fn {
-            btn = btn.style(style_fn);
-        }
-
-        btn.into()
+impl<'a, M: Clone + 'static> CustomStyle<'a, M> for Button<'a, M> {
+    fn custom_style(self, style: ButtonThemeStyle) -> Self {
+        self.style(move |theme: &Theme, status: Status| style.style(theme, status))
     }
 }
 
-pub fn default_style(_theme: &iced::Theme, status: Status) -> Style {
+#[derive(Debug, Clone, Copy)]
+pub enum ButtonThemeStyle {
+    Default,
+    CustomRounded,
+    BlankBorder,
+    Danger,
+    Custom,
+}
+
+impl ButtonThemeStyle {
+    pub fn style(self, theme: &Theme, status: Status) -> Style {
+        match self {
+            Self::Default => default_style(theme, status),
+            Self::CustomRounded => custom_btn_rounded_style(theme, status),
+            Self::BlankBorder => blank_border_style(theme, status),
+            Self::Danger => danger_style(theme, status),
+            Self::Custom => custom_btn_style(theme, status),
+        }
+    }
+}
+
+fn default_style(_theme: &iced::Theme, status: Status) -> Style {
     match status {
         Status::Pressed => Style {
             background: Some(Background::Color(Color::from_rgb8(50, 50, 250))),
@@ -221,7 +71,7 @@ pub fn default_style(_theme: &iced::Theme, status: Status) -> Style {
     }
 }
 
-pub fn custom_btn_style(_theme: &iced::Theme, status: Status) -> Style {
+fn custom_btn_style(_theme: &iced::Theme, status: Status) -> Style {
     match status {
         Status::Pressed => Style {
             background: Some(Background::Color(Color::from_rgb8(70, 70, 70))),
@@ -254,7 +104,7 @@ pub fn custom_btn_style(_theme: &iced::Theme, status: Status) -> Style {
     }
 }
 
-pub fn custom_btn_rounded_style(_theme: &iced::Theme, status: Status) -> Style {
+fn custom_btn_rounded_style(_theme: &iced::Theme, status: Status) -> Style {
     let border = Border {
         color: Color::from_rgb8(200, 200, 200),
         width: 0.3,
@@ -292,84 +142,7 @@ pub fn custom_btn_rounded_style(_theme: &iced::Theme, status: Status) -> Style {
     }
 }
 
-pub fn blank_btn_style(_theme: &iced::Theme, status: Status) -> Style {
-    match status {
-        Status::Pressed => Style {
-            background: None,
-            text_color: Color::from_rgb8(50, 50, 50),
-            border: Border::default(),
-            shadow: Shadow::default(),
-            snap: false,
-        },
-        Status::Hovered => Style {
-            background: None,
-            text_color: Color::from_rgb8(255, 255, 255),
-            border: Border::default(),
-            shadow: Shadow::default(),
-            snap: false,
-        },
-        Status::Active => Style {
-            background: None,
-            text_color: Color::from_rgb8(3, 161, 252),
-            border: Border::default(),
-            shadow: Shadow::default(),
-            snap: false,
-        },
-        Status::Disabled => Style {
-            background: None,
-            text_color: Color::from_rgb8(150, 150, 150),
-            border: Border::default(),
-            shadow: Shadow::default(),
-            snap: false,
-        },
-    }
-}
-
-pub fn thumb_style(_theme: &iced::Theme, status: Status) -> Style {
-    match status {
-        Status::Pressed => Style {
-            background: None,
-            text_color: Color::TRANSPARENT,
-            border: Border {
-                color: Color::from_rgb8(3, 161, 252),
-                width: 2.0,
-                radius: 5.0.into(),
-            },
-            shadow: Shadow::default(),
-            snap: false,
-        },
-        Status::Hovered => Style {
-            background: None,
-            text_color: Color::TRANSPARENT,
-            border: Border {
-                color: Color::from_rgb8(3, 161, 252),
-                width: 2.0,
-                radius: 5.0.into(),
-            },
-            shadow: Shadow::default(),
-            snap: false,
-        },
-        Status::Active => Style {
-            background: None,
-            text_color: Color::TRANSPARENT,
-            border: Border {
-                color: Color::from_rgb8(200, 200, 200),
-                width: 2.0,
-                radius: 5.0.into(),
-            },
-            shadow: Shadow::default(),
-            snap: false,
-        },
-        Status::Disabled => Style {
-            background: Some(Background::Color(Color::from_rgb8(10, 30, 80))),
-            text_color: Color::from_rgb8(150, 150, 150),
-            border: Border::default(),
-            shadow: Shadow::default(),
-            snap: false,
-        },
-    }
-}
-pub fn blank_border_style(_theme: &iced::Theme, status: Status) -> Style {
+fn blank_border_style(_theme: &iced::Theme, status: Status) -> Style {
     match status {
         Status::Active => Style {
             background: None,
@@ -431,7 +204,7 @@ pub fn blank_border_style(_theme: &iced::Theme, status: Status) -> Style {
     }
 }
 
-pub fn danger_style(_theme: &iced::Theme, status: Status) -> Style {
+fn danger_style(_theme: &iced::Theme, status: Status) -> Style {
     match status {
         Status::Active => Style {
             background: Some(Background::Color(Color::from_rgb8(220, 50, 47))),
@@ -480,35 +253,5 @@ pub fn danger_style(_theme: &iced::Theme, status: Status) -> Style {
             shadow: Shadow::default(),
             snap: false,
         },
-    }
-}
-
-// =====Static variant===========
-
-pub fn thumb_single_static(_theme: &iced::Theme, _status: Status) -> Style {
-    Style {
-        background: None,
-        text_color: Color::WHITE,
-        border: Border {
-            color: Color::from_rgb8(3, 161, 252),
-            width: 2.0,
-            radius: 5.0.into(),
-        },
-        snap: false,
-        shadow: Default::default(),
-    }
-}
-
-pub fn red_color_static(_theme: &iced::Theme, _status: Status) -> Style {
-    Style {
-        background: Some(Color::from_rgb8(220, 50, 47).into()),
-        text_color: Color::WHITE,
-        border: Border {
-            color: Color::from_rgb8(200, 200, 200),
-            width: 0.5,
-            radius: 4.0.into(),
-        },
-        snap: false,
-        shadow: Default::default(),
     }
 }
