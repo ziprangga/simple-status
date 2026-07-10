@@ -24,7 +24,7 @@ mod channel_receiver;
 mod emitter;
 mod receiver;
 
-pub use emitter::{Emitter, EmitterHandler};
+pub use emitter::{Emitter, EmitterHandler, IntoEmitter};
 pub use receiver::{Receiver, ReceiverHandler};
 
 pub use channel_emitter::{BroadcastEmitter, MpscEmitter};

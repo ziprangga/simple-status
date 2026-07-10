@@ -57,6 +57,7 @@ pub use channel::ChannelKind;
 pub use channel::Channels;
 pub use channel::Emitter;
 pub use channel::EmitterHandler;
+pub use channel::IntoEmitter;
 pub use channel::MpscEmitter;
 pub use channel::MpscReceiver;
 pub use channel::Receiver;

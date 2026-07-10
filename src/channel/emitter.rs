@@ -34,6 +34,47 @@ pub trait EmitterHandler: Send + Sync {
     fn subscribe(&self) -> Option<Arc<Receiver>>;
 }
 
+/// Conversion into an optional emitter reference.
+///
+/// Doc:
+/// Provides a uniform way to accept either an `&Emitter` or an
+/// `Option<&Emitter>` and normalize them into `Option<&Emitter>`.
+///
+/// Note:
+/// This trait is primarily intended for API ergonomics
+pub trait IntoEmitter<'a> {
+    /// Converts this value into an optional emitter reference.
+    ///
+    /// Note:
+    /// Implementations may return `None` when no emitter is available.
+    /// The conversion consumes `self`, though implementors are generally
+    /// lightweight reference-based types.
+    fn into_emitter(self) -> Option<&'a Emitter>;
+}
+
+impl<'a> IntoEmitter<'a> for Option<&'a Emitter> {
+    /// Returns the emitter unchanged.
+    ///
+    /// Note:
+    /// This implementation allows APIs accepting `IntoEmitter` to receive an
+    /// optional emitter directly.
+    fn into_emitter(self) -> Option<&'a Emitter> {
+        self
+    }
+}
+
+impl<'a> IntoEmitter<'a> for &'a Emitter {
+    /// Wraps the emitter in `Some`.
+    ///
+    /// Note:
+    /// This implementation allows APIs accepting `IntoEmitter` to receive a
+    /// concrete emitter reference without requiring callers to construct
+    /// `Some(...)` explicitly.
+    fn into_emitter(self) -> Option<&'a Emitter> {
+        Some(self)
+    }
+}
+
 /// Type-erased status emitter.
 ///
 /// Doc:

@@ -8,34 +8,17 @@
 mod __private {
     use crate::Emitter;
     use crate::Event;
+    use crate::IntoEmitter;
     use crate::Status;
     use std::path::PathBuf;
 
-    pub trait IntoEmitter<'a> {
-        fn into_emitter(self) -> Option<&'a Emitter>;
-    }
-
-    impl<'a> IntoEmitter<'a> for Option<&'a Emitter> {
-        fn into_emitter(self) -> Option<&'a Emitter> {
-            self
-        }
-    }
-
-    impl<'a> IntoEmitter<'a> for &'a Emitter {
-        fn into_emitter(self) -> Option<&'a Emitter> {
-            Some(self)
-        }
-    }
-
-    /// Constructs a `Status` object from optional fields passed by macros.
-    /// This function handles the boilerplate of updating the `Event::builder()`.
-    pub fn build_status(
+    fn int_event_build(
         stage: Option<String>,
         current: Option<usize>,
         total: Option<usize>,
         message: Option<String>,
         path: Option<PathBuf>,
-    ) -> Status {
+    ) -> Event {
         let mut builder = Event::builder();
 
         if let Some(stage) = stage {
@@ -54,9 +37,40 @@ mod __private {
             builder = builder.path(path);
         }
 
-        Status::new(builder.build())
+        builder.build()
+    }
+
+    fn int_status_build(
+        stage: Option<String>,
+        current: Option<usize>,
+        total: Option<usize>,
+        message: Option<String>,
+        path: Option<PathBuf>,
+    ) -> Status {
+        let event = int_event_build(stage, current, total, message, path);
+        Status::new(event)
+    }
+
+    // =====================================================
+
+    pub fn into_emitter_opt<'a, E>(emitter: E) -> Option<&'a Emitter>
+    where
+        E: IntoEmitter<'a>,
+    {
+        emitter.into_emitter()
+    }
+
+    /// Constructs a `StatusEvent` object from optional fields passed by macros.
+    pub fn build_status(
+        stage: Option<String>,
+        current: Option<usize>,
+        total: Option<usize>,
+        message: Option<String>,
+        path: Option<PathBuf>,
+    ) -> Status {
+        int_status_build(stage, current, total, message, path)
     }
 }
 
-pub use self::__private::IntoEmitter;
 pub use self::__private::build_status;
+pub use self::__private::into_emitter_opt;

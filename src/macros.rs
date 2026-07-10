@@ -4,7 +4,7 @@
 #[macro_export]
 #[clippy::format_args]
 macro_rules! __into_emitter {
-    ($emitter:expr) => {{ $crate::__private_helper::IntoEmitter::into_emitter($emitter) }};
+    ($emitter:expr) => {{ $crate::__private_helper::into_emitter_opt($emitter) }};
 }
 
 /// Constructs a [`Status`] from the provided fields.
