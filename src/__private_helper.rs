@@ -9,7 +9,7 @@ mod __private {
     use crate::Emitter;
     use crate::Event;
     use crate::IntoEmitter;
-    use crate::Status;
+    use crate::StatusEvent;
     use std::path::PathBuf;
 
     fn int_event_build(
@@ -46,9 +46,9 @@ mod __private {
         total: Option<usize>,
         message: Option<String>,
         path: Option<PathBuf>,
-    ) -> Status {
+    ) -> StatusEvent {
         let event = int_event_build(stage, current, total, message, path);
-        Status::new(event)
+        StatusEvent::new(event)
     }
 
     // =====================================================
@@ -67,7 +67,7 @@ mod __private {
         total: Option<usize>,
         message: Option<String>,
         path: Option<PathBuf>,
-    ) -> Status {
+    ) -> StatusEvent {
         int_status_build(stage, current, total, message, path)
     }
 }

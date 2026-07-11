@@ -27,7 +27,7 @@ use tokio::sync::mpsc;
 use crate::channel::BoxFuture;
 use crate::channel::BoxStream;
 use crate::channel::ReceiverHandler;
-use crate::status::Status;
+use crate::status::StatusEvent;
 
 /// Receives `Status` values from a Tokio MPSC channel.
 ///
@@ -35,11 +35,11 @@ use crate::status::Status;
 /// Wraps `tokio::sync::mpsc::Receiver` as a `ReceiverHandler`.
 #[derive(Debug)]
 pub struct MpscReceiver {
-    inner: Mutex<mpsc::Receiver<Status>>,
+    inner: Mutex<mpsc::Receiver<StatusEvent>>,
 }
 
 impl MpscReceiver {
-    pub fn new(rx: mpsc::Receiver<Status>) -> Self {
+    pub fn new(rx: mpsc::Receiver<StatusEvent>) -> Self {
         Self {
             inner: Mutex::new(rx),
         }
@@ -47,15 +47,15 @@ impl MpscReceiver {
 }
 
 impl ReceiverHandler for MpscReceiver {
-    fn try_recv(&self) -> Option<Status> {
+    fn try_recv(&self) -> Option<StatusEvent> {
         self.inner.try_lock().ok()?.try_recv().ok()
     }
 
-    fn recv(&self) -> BoxFuture<'_, Option<Status>> {
+    fn recv(&self) -> BoxFuture<'_, Option<StatusEvent>> {
         Box::pin(async move { self.inner.lock().await.recv().await })
     }
 
-    fn stream(&self) -> BoxStream<'_, Status> {
+    fn stream(&self) -> BoxStream<'_, StatusEvent> {
         Box::pin(stream::unfold(self, |this| async move {
             this.recv().await.map(|status| (status, this))
         }))
@@ -72,11 +72,11 @@ impl ReceiverHandler for MpscReceiver {
 /// received.
 #[derive(Debug)]
 pub struct BroadcastReceiver {
-    inner: Mutex<broadcast::Receiver<Status>>,
+    inner: Mutex<broadcast::Receiver<StatusEvent>>,
 }
 
 impl BroadcastReceiver {
-    pub fn new(rx: broadcast::Receiver<Status>) -> Self {
+    pub fn new(rx: broadcast::Receiver<StatusEvent>) -> Self {
         Self {
             inner: Mutex::new(rx),
         }
@@ -84,7 +84,7 @@ impl BroadcastReceiver {
 }
 
 impl ReceiverHandler for BroadcastReceiver {
-    fn try_recv(&self) -> Option<Status> {
+    fn try_recv(&self) -> Option<StatusEvent> {
         let mut guard = self.inner.try_lock().ok()?;
         loop {
             match guard.try_recv() {
@@ -95,7 +95,7 @@ impl ReceiverHandler for BroadcastReceiver {
         }
     }
 
-    fn recv(&self) -> BoxFuture<'_, Option<Status>> {
+    fn recv(&self) -> BoxFuture<'_, Option<StatusEvent>> {
         Box::pin(async move {
             let mut guard = self.inner.lock().await;
             loop {
@@ -108,7 +108,7 @@ impl ReceiverHandler for BroadcastReceiver {
         })
     }
 
-    fn stream(&self) -> BoxStream<'_, Status> {
+    fn stream(&self) -> BoxStream<'_, StatusEvent> {
         Box::pin(stream::unfold(self, |this| async move {
             this.recv().await.map(|status| (status, this))
         }))

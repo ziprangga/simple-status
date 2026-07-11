@@ -70,14 +70,14 @@ pub use event::Event;
 /// });
 /// ```
 pub trait StatusFormatter {
-    fn format(&self, status: &Status) -> String;
+    fn format(&self, status: &StatusEvent) -> String;
 }
 
 impl<F> StatusFormatter for F
 where
-    F: Fn(&Status) -> String,
+    F: Fn(&StatusEvent) -> String,
 {
-    fn format(&self, status: &Status) -> String {
+    fn format(&self, status: &StatusEvent) -> String {
         (self)(status)
     }
 }
@@ -102,11 +102,11 @@ where
 /// - `Status` intentionally owns `Event` instead of borrowing it.
 /// - Keeping ownership simplifies the API and avoids lifetime propagation.
 #[derive(Debug, Default, Clone)]
-pub struct Status {
+pub struct StatusEvent {
     event: Event,
 }
 
-impl Status {
+impl StatusEvent {
     /// Creates a new status from an event.
     ///
     /// Doc:
@@ -166,7 +166,7 @@ impl Status {
     }
 }
 
-impl std::fmt::Display for Status {
+impl std::fmt::Display for StatusEvent {
     // Note:
     // Formatting order is fixed:
     //

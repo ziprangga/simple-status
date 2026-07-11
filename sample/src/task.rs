@@ -1,8 +1,8 @@
-use simple_status::{Emitter, Status};
+use simple_status::{Emitter, StatusEvent};
 
 use crate::test_msg::*;
 
-pub async fn direct_message_task() -> Status {
+pub async fn direct_message_task() -> StatusEvent {
     direct_message()
 }
 

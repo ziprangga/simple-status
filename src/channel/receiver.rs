@@ -3,7 +3,7 @@ use std::sync::Arc;
 
 use crate::channel::BoxFuture;
 use crate::channel::BoxStream;
-use crate::status::Status;
+use crate::status::StatusEvent;
 
 /// Trait implemented by receiver backends.
 ///
@@ -19,21 +19,21 @@ pub trait ReceiverHandler: Send + Sync {
     /// Note:
     /// This method should return immediately. If no status is available,
     /// it should return `None` instead of waiting.
-    fn try_recv(&self) -> Option<Status>;
+    fn try_recv(&self) -> Option<StatusEvent>;
 
     /// Receives a status asynchronously.
     ///
     /// Note:
     /// The returned future is driven by the caller and does not begin
     /// execution until it is polled.
-    fn recv(&self) -> BoxFuture<'_, Option<Status>>;
+    fn recv(&self) -> BoxFuture<'_, Option<StatusEvent>>;
 
     /// Creates a stream of received statuses.
     ///
     /// Note:
     /// The returned stream is driven by the caller and yields statuses
     /// until the receiver is exhausted or the underlying channel is closed.
-    fn stream(&self) -> BoxStream<'_, Status>;
+    fn stream(&self) -> BoxStream<'_, StatusEvent>;
 }
 
 /// Type-erased status receiver.
@@ -56,12 +56,12 @@ impl Receiver {
     }
 
     /// Attempts to receive a status synchronously.
-    pub fn sync_recv(&self) -> Option<Status> {
+    pub fn sync_recv(&self) -> Option<StatusEvent> {
         self.receiver.try_recv()
     }
 
     /// Receives the next status asynchronously.
-    pub async fn async_recv(&self) -> Option<Status> {
+    pub async fn async_recv(&self) -> Option<StatusEvent> {
         self.receiver.recv().await
     }
 
@@ -73,14 +73,14 @@ impl Receiver {
     ///
     /// Note:
     /// This is a convenience wrapper built using `futures::stream::unfold`.
-    pub fn stream(&self) -> Option<BoxStream<'static, Status>> {
+    pub fn stream(&self) -> Option<BoxStream<'static, StatusEvent>> {
         let this = self.clone();
         let s = stream::unfold(this, |res| async move {
             let status = res.async_recv().await?;
             Some((status, res))
         });
 
-        Some(Box::pin(s) as BoxStream<'static, Status>)
+        Some(Box::pin(s) as BoxStream<'static, StatusEvent>)
     }
 }
 

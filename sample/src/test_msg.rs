@@ -1,8 +1,8 @@
 use simple_status::Emitter;
-use simple_status::{Status, status, status_emit};
+use simple_status::{StatusEvent, status, status_emit};
 use tokio::time::Duration;
 
-pub fn direct_message() -> Status {
+pub fn direct_message() -> StatusEvent {
     status!("this is DIRECT")
 }
 

@@ -30,7 +30,7 @@ pub use receiver::{Receiver, ReceiverHandler};
 pub use channel_emitter::{BroadcastEmitter, MpscEmitter};
 pub use channel_receiver::{BroadcastReceiver, MpscReceiver};
 
-use crate::status::Status;
+use crate::status::StatusEvent;
 use futures::Stream;
 use std::future::Future;
 use std::pin::Pin;
@@ -123,9 +123,9 @@ impl Channels {
     /// Performs an immediate, non-async emission.
     ///
     /// If no emitter exists, this method does nothing.
-    pub fn emit_sync(&self, status: Status) {
+    pub fn emit_sync(&self, se: StatusEvent) {
         if let Some(e) = &self.emitter {
-            e.emit_sync(status);
+            e.emit_sync(se);
         }
     }
 
@@ -135,23 +135,23 @@ impl Channels {
     /// Awaits the underlying channel implementation.
     ///
     /// If no emitter exists, this method completes immediately.
-    pub async fn emit_async(&self, status: Status) {
+    pub async fn emit_async(&self, se: StatusEvent) {
         if let Some(e) = &self.emitter {
-            e.emit_async(status).await;
+            e.emit_async(se).await;
         }
     }
 
     /// Attempts to receive a status synchronously.
     ///
     /// Returns `None` if no receiver exists or no status is available.
-    pub fn recv_sync(&self) -> Option<Status> {
+    pub fn recv_sync(&self) -> Option<StatusEvent> {
         self.receiver.as_ref()?.sync_recv()
     }
 
     /// Receives the next status asynchronously.
     ///
     /// Returns `None` if no receiver exists.
-    pub async fn recv_async(&self) -> Option<Status> {
+    pub async fn recv_async(&self) -> Option<StatusEvent> {
         if let Some(r) = &self.receiver {
             r.async_recv().await
         } else {
@@ -170,7 +170,7 @@ impl Channels {
     /// Stream from existing receiver need StreamExt to map and use next(),
     /// `StreamExt` is re-exported by this crate for convenience.
     /// can be use from simple_status::StreamExt
-    pub fn stream(&self) -> Option<BoxStream<'static, Status>> {
+    pub fn stream(&self) -> Option<BoxStream<'static, StatusEvent>> {
         self.receiver.as_ref()?.stream()
     }
 

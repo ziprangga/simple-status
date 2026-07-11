@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use crate::channel::BoxFuture;
 use crate::channel::Receiver;
-use crate::status::Status;
+use crate::status::StatusEvent;
 
 /// Trait implemented by emitter backends.
 ///
@@ -17,14 +17,14 @@ pub trait EmitterHandler: Send + Sync {
     ///
     /// Note:
     /// This method should complete the emission before returning.
-    fn try_emit(&self, status: Status);
+    fn try_emit(&self, status: StatusEvent);
 
     /// Emits a status asynchronously.
     ///
     /// Note:
     /// The returned future is driven by the caller and does not begin
     /// execution until it is polled.
-    fn emit(&self, status: Status) -> BoxFuture<'_, ()>;
+    fn emit(&self, status: StatusEvent) -> BoxFuture<'_, ()>;
 
     /// Creates a new receiver from this emitter, if supported.
     ///
@@ -95,13 +95,13 @@ impl Emitter {
     }
 
     /// Emits a status synchronously.
-    pub fn emit_sync(&self, status: Status) {
-        self.emitter.try_emit(status);
+    pub fn emit_sync(&self, se: StatusEvent) {
+        self.emitter.try_emit(se);
     }
 
     /// Emits a status asynchronously.
-    pub async fn emit_async(&self, status: Status) {
-        self.emitter.emit(status).await;
+    pub async fn emit_async(&self, se: StatusEvent) {
+        self.emitter.emit(se).await;
     }
 
     /// Creates a new receiver from this emitter, if supported.

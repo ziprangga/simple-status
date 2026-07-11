@@ -1,4 +1,4 @@
-use simple_status::{ChannelKind, Status, init_channels};
+use simple_status::{ChannelKind, StatusEvent, init_channels};
 
 #[derive(Debug, Clone, Copy, Default)]
 pub enum StatusSource {
@@ -20,7 +20,7 @@ pub enum StatusSource {
 
 #[derive(Debug, Clone)]
 pub enum AppMessage {
-    ShowStatus(Status),
+    ShowStatus(StatusEvent),
 
     ButtonDirect,
 
@@ -41,7 +41,7 @@ pub enum AppMessage {
 
 #[derive(Debug, Clone)]
 pub struct AppState {
-    pub show_status: Status,
+    pub show_status: StatusEvent,
     pub source: StatusSource,
 }
 
@@ -50,7 +50,7 @@ impl AppState {
         let _ = init_channels(buffer, kind);
 
         Self {
-            show_status: Status::default(),
+            show_status: StatusEvent::default(),
             source: StatusSource::default(),
         }
     }

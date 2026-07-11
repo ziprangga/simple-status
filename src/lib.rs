@@ -63,7 +63,7 @@ pub use channel::MpscReceiver;
 pub use channel::Receiver;
 pub use channel::ReceiverHandler;
 pub use status::Event;
-pub use status::Status;
+pub use status::StatusEvent;
 pub use status::StatusFormatter;
 
 #[doc(hidden)]
@@ -123,23 +123,23 @@ fn channels_bus() -> &'static Channels {
         .expect("simple_status::init_channels() has not been called")
 }
 
-pub fn stream() -> Option<BoxStream<'static, Status>> {
+pub fn stream() -> Option<BoxStream<'static, StatusEvent>> {
     channels_bus().stream()
 }
 
-pub fn emit_sync(status: Status) {
+pub fn emit_sync(status: StatusEvent) {
     channels_bus().emit_sync(status);
 }
 
-pub async fn emit_async(status: Status) {
+pub async fn emit_async(status: StatusEvent) {
     channels_bus().emit_async(status).await;
 }
 
-pub fn recv_sync() -> Option<Status> {
+pub fn recv_sync() -> Option<StatusEvent> {
     channels_bus().recv_sync()
 }
 
-pub async fn recv_async() -> Option<Status> {
+pub async fn recv_async() -> Option<StatusEvent> {
     channels_bus().recv_async().await
 }
 
@@ -157,13 +157,13 @@ pub fn subscribe() -> Option<Arc<Receiver>> {
 // Note:
 // These functions allow the macros to emit through either an explicit emitter
 // or no emitter (`None`) without duplicating logic.
-pub fn status_emit_sync(emitter: Option<&Emitter>, status: Status) {
+pub fn status_emit_sync(emitter: Option<&Emitter>, status: StatusEvent) {
     if let Some(e) = emitter {
         e.emit_sync(status);
     }
 }
 
-pub async fn status_emit_async(emitter: Option<&Emitter>, status: Status) {
+pub async fn status_emit_async(emitter: Option<&Emitter>, status: StatusEvent) {
     if let Some(e) = emitter {
         e.emit_async(status).await;
     }

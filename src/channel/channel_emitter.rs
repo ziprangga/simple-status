@@ -28,7 +28,7 @@ use crate::channel::BoxFuture;
 use crate::channel::BroadcastReceiver;
 use crate::channel::EmitterHandler;
 use crate::channel::Receiver;
-use crate::status::Status;
+use crate::status::StatusEvent;
 
 /// Emits `Status` values through a Tokio MPSC channel.
 ///
@@ -40,21 +40,21 @@ use crate::status::Status;
 /// returns `None`.
 #[derive(Debug, Clone)]
 pub struct MpscEmitter {
-    sender: mpsc::Sender<Status>,
+    sender: mpsc::Sender<StatusEvent>,
 }
 
 impl MpscEmitter {
-    pub fn new(sender: mpsc::Sender<Status>) -> Self {
+    pub fn new(sender: mpsc::Sender<StatusEvent>) -> Self {
         Self { sender }
     }
 }
 
 impl EmitterHandler for MpscEmitter {
-    fn try_emit(&self, status: Status) {
+    fn try_emit(&self, status: StatusEvent) {
         let _ = self.sender.try_send(status);
     }
 
-    fn emit(&self, status: Status) -> BoxFuture<'_, ()> {
+    fn emit(&self, status: StatusEvent) -> BoxFuture<'_, ()> {
         Box::pin(async move {
             let _ = self.sender.send(status).await;
         })
@@ -75,21 +75,21 @@ impl EmitterHandler for MpscEmitter {
 /// independent receiver.
 #[derive(Debug, Clone)]
 pub struct BroadcastEmitter {
-    sender: broadcast::Sender<Status>,
+    sender: broadcast::Sender<StatusEvent>,
 }
 
 impl BroadcastEmitter {
-    pub fn new(sender: broadcast::Sender<Status>) -> Self {
+    pub fn new(sender: broadcast::Sender<StatusEvent>) -> Self {
         Self { sender }
     }
 }
 
 impl EmitterHandler for BroadcastEmitter {
-    fn try_emit(&self, status: Status) {
+    fn try_emit(&self, status: StatusEvent) {
         let _ = self.sender.send(status);
     }
 
-    fn emit(&self, status: Status) -> BoxFuture<'_, ()> {
+    fn emit(&self, status: StatusEvent) -> BoxFuture<'_, ()> {
         Box::pin(async move {
             self.try_emit(status);
         })

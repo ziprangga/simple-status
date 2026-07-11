@@ -84,7 +84,7 @@ impl Event {
 /// and returns `Self`, making it convenient to chain method calls.
 #[derive(Debug, Clone)]
 pub struct EventBuilder {
-    status_event: Event,
+    event: Event,
 }
 
 impl EventBuilder {
@@ -94,37 +94,37 @@ impl EventBuilder {
     /// All event fields are initially unset.
     pub fn new() -> Self {
         Self {
-            status_event: Event::default(),
+            event: Event::default(),
         }
     }
 
     /// Sets the event stage.
     pub fn stage(mut self, stage: impl Into<String>) -> Self {
-        self.status_event.stage = Some(stage.into());
+        self.event.stage = Some(stage.into());
         self
     }
 
     /// Sets the current progress value.
     pub fn current(mut self, current: usize) -> Self {
-        self.status_event.current = Some(current);
+        self.event.current = Some(current);
         self
     }
 
     /// Sets the total progress value.
     pub fn total(mut self, total: usize) -> Self {
-        self.status_event.total = Some(total);
+        self.event.total = Some(total);
         self
     }
 
     /// Sets the event message.
     pub fn message(mut self, message: impl Into<String>) -> Self {
-        self.status_event.message = Some(message.into());
+        self.event.message = Some(message.into());
         self
     }
 
     /// Sets the associated filesystem path.
     pub fn path(mut self, path: PathBuf) -> Self {
-        self.status_event.path = Some(path);
+        self.event.path = Some(path);
         self
     }
 
@@ -137,6 +137,6 @@ impl EventBuilder {
     /// No validation is performed. All fields are optional, so an empty `Event` is
     /// considered valid.
     pub fn build(self) -> Event {
-        self.status_event
+        self.event
     }
 }
