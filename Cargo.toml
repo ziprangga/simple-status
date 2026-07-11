@@ -1,14 +1,14 @@
 [package]
 name = "simple-status"
-version = "0.1.9"
+version = "0.1.10"
 edition = "2024"
 authors = ["ziprangga"]
 license = "MIT OR Apache-2.0"
 description = "Lightweight Rust crate for emitting and tracking status events"
 repository = "https://github.com/ziprangga/simple-status"
 readme = "README.md"
-keywords = ["status", "async", "progress"]
-categories = ["asynchronous", "utilities"]
+keywords = ["status", "async", "progress", "event", "sync"]
+categories = ["asynchronous", "synchronous", "utilities"]
 
 [dependencies]
 tokio = { version = "1", features = ["full"] }

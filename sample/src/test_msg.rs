@@ -6,11 +6,11 @@ pub fn direct_message() -> StatusEvent {
     status!("this is DIRECT")
 }
 
-pub fn emit_sync_message(emitter: Option<&Emitter>) {
+pub fn emit_sync_message(emitter: &Emitter) {
     status_emit!(emitter, "{}", "this is EMIT SYNC INDEPENDENT".to_string());
 }
 
-pub async fn emit_async_message(emitter: Option<&Emitter>) {
+pub async fn emit_async_message(emitter: &Emitter) {
     status_emit!(
         async,
         emitter,
@@ -36,7 +36,7 @@ pub async fn global_emit_async_message() {
 ///
 /// If each progress update should be observed individually, use the async
 /// example or introduce a delay between emissions.
-pub fn independent_emit_sync_with_progress(emitter: Option<&Emitter>) {
+pub fn independent_emit_sync_with_progress(emitter: &Emitter) {
     let total = 20;
 
     for current in 0..=total {
@@ -50,7 +50,7 @@ pub fn independent_emit_sync_with_progress(emitter: Option<&Emitter>) {
     }
 }
 
-pub async fn independent_emit_async_with_progress(emitter: Option<&Emitter>) {
+pub async fn independent_emit_async_with_progress(emitter: &Emitter) {
     let total = 20;
 
     for current in 0..=total {

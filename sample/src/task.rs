@@ -6,11 +6,11 @@ pub async fn direct_message_task() -> StatusEvent {
     direct_message()
 }
 
-pub async fn emit_sync_message_task(emitter: Option<&Emitter>) {
+pub async fn emit_sync_message_task(emitter: &Emitter) {
     emit_sync_message(emitter);
 }
 
-pub async fn emit_async_message_task(emitter: Option<&Emitter>) {
+pub async fn emit_async_message_task(emitter: &Emitter) {
     emit_async_message(emitter).await;
 }
 
@@ -22,11 +22,11 @@ pub async fn global_emit_async_message_task() {
     global_emit_async_message().await;
 }
 
-pub async fn independent_emit_sync_with_progress_task(emitter: Option<&Emitter>) {
+pub async fn independent_emit_sync_with_progress_task(emitter: &Emitter) {
     independent_emit_sync_with_progress(emitter);
 }
 
-pub async fn independent_emit_async_with_progress_task(emitter: Option<&Emitter>) {
+pub async fn independent_emit_async_with_progress_task(emitter: &Emitter) {
     independent_emit_async_with_progress(emitter).await;
 }
 

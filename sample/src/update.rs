@@ -27,7 +27,7 @@ pub fn update(state: &mut AppState, message: AppMessage) -> Task<AppMessage> {
             let emitter = channels.get_emitter();
             let emit_task = Task::perform(
                 async move {
-                    emit_sync_message_task(emitter.as_deref()).await;
+                    emit_sync_message_task(&emitter).await;
                     AppMessage::NoOperations
                 },
                 |msg| msg,
@@ -47,7 +47,7 @@ pub fn update(state: &mut AppState, message: AppMessage) -> Task<AppMessage> {
             let emitter = channels.get_emitter();
             let emit_task = Task::perform(
                 async move {
-                    emit_async_message_task(emitter.as_deref()).await;
+                    emit_async_message_task(&emitter).await;
                     AppMessage::NoOperations
                 },
                 |msg| msg,
@@ -92,7 +92,7 @@ pub fn update(state: &mut AppState, message: AppMessage) -> Task<AppMessage> {
 
             let emit_task = Task::perform(
                 async move {
-                    independent_emit_sync_with_progress_task(emitter.as_deref()).await;
+                    independent_emit_sync_with_progress_task(&emitter).await;
                     AppMessage::NoOperations
                 },
                 |msg| msg,
@@ -113,7 +113,7 @@ pub fn update(state: &mut AppState, message: AppMessage) -> Task<AppMessage> {
 
             let emit_task = Task::perform(
                 async move {
-                    independent_emit_async_with_progress_task(emitter.as_deref()).await;
+                    independent_emit_async_with_progress_task(&emitter).await;
                     AppMessage::NoOperations
                 },
                 |msg| msg,

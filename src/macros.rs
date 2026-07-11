@@ -1,11 +1,11 @@
 // Standardizes the provided emitter expression by converting it
 // into the required emitter type via the internal `IntoEmitter` trait.
-#[doc(hidden)]
-#[macro_export]
-#[clippy::format_args]
-macro_rules! __into_emitter {
-    ($emitter:expr) => {{ $crate::__private_helper::into_emitter_opt($emitter) }};
-}
+// #[doc(hidden)]
+// #[macro_export]
+// #[clippy::format_args]
+// macro_rules! __into_emitter {
+//     ($emitter:expr) => {{ $crate::__private_helper::into_emitter_opt($emitter) }};
+// }
 
 /// Constructs a [`Status`] from the provided fields.
 ///
@@ -37,7 +37,7 @@ macro_rules! status {
         $(path: $path:expr $(,)?)?
     ) => {{
 
-        $crate::__private_helper::build_status(
+        $crate::__private_helper::build_status_event(
             $crate::status!(@opt_str $($stage)?),
             $crate::status!(@opt_usize $($current)?),
             $crate::status!(@opt_usize $($total)?),
@@ -54,7 +54,7 @@ macro_rules! status {
     (@opt_path) => { None };
 
     ($($arg:tt)+) => {{
-        $crate::__private_helper::build_status(None, None, None, Some(format!($($arg)+)), None)
+        $crate::__private_helper::build_status_event(None, None, None, Some(format!($($arg)+)), None)
     }};
 
 }
@@ -85,7 +85,7 @@ macro_rules! status_emit {
     // Instance Async (with key-value pairs)
     (async, $emitter:expr, $(stage: $stage:expr,)? $(current: $current:expr,)? $(total: $total:expr,)? $(message: $message:expr,)? $(path: $path:expr $(,)?)?) => {{
         $crate::status_emit_async(
-            $crate::__into_emitter!($emitter),
+            $emitter,
             $crate::status!($(stage: $stage,)? $(current: $current,)? $(total: $total,)? $(message: $message,)? $(path: $path,)?)
         ).await;
     }};
@@ -94,7 +94,7 @@ macro_rules! status_emit {
     // Triggered when the second argument is an expression but the remaining tokens are format strings
     (async, $emitter:expr, $fmt:expr, $($arg:tt)+) => {{
         $crate::status_emit_async(
-            $crate::__into_emitter!($emitter),
+            $emitter,
             $crate::status!($fmt, $($arg)+)
         ).await;
     }};
@@ -128,7 +128,7 @@ macro_rules! status_emit {
     // Instance Sync (with key-value pairs)
     ($emitter:expr, $(stage: $stage:expr,)? $(current: $current:expr,)? $(total: $total:expr,)? $(message: $message:expr,)? $(path: $path:expr $(,)?)?) => {{
         $crate::status_emit_sync(
-            $crate::__into_emitter!($emitter),
+            $emitter,
             $crate::status!($(stage: $stage,)? $(current: $current,)? $(total: $total,)? $(message: $message,)? $(path: $path,)?)
         );
     }};
@@ -136,7 +136,7 @@ macro_rules! status_emit {
     // Instance Sync (with string format / raw arguments)
     ($emitter:expr, $fmt:expr, $($arg:tt)+) => {{
         $crate::status_emit_sync(
-            $crate::__into_emitter!($emitter),
+            $emitter,
             $crate::status!($fmt, $($arg)+)
         );
     }};

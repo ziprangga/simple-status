@@ -43,28 +43,30 @@
 //! interface.
 //!..
 
-mod channel;
+mod channels;
 mod status;
 
 #[macro_use]
 mod macros;
 
-pub use channel::BoxFuture;
-pub use channel::BoxStream;
-pub use channel::BroadcastEmitter;
-pub use channel::BroadcastReceiver;
-pub use channel::ChannelKind;
-pub use channel::Channels;
-pub use channel::Emitter;
-pub use channel::EmitterHandler;
-pub use channel::IntoEmitter;
-pub use channel::MpscEmitter;
-pub use channel::MpscReceiver;
-pub use channel::Receiver;
-pub use channel::ReceiverHandler;
+pub use channels::BoxFuture;
+pub use channels::BoxStream;
+pub use channels::BroadcastEmitter;
+pub use channels::BroadcastReceiver;
+pub use channels::ChannelKind;
+pub use channels::Channels;
+pub use channels::Emitter;
+pub use channels::EmitterHandler;
+pub use channels::MpscEmitter;
+pub use channels::MpscReceiver;
+pub use channels::Receiver;
+pub use channels::ReceiverHandler;
 pub use status::Event;
 pub use status::StatusEvent;
 pub use status::StatusFormatter;
+
+// Re-export commonly used stream extension traits for convenience.
+pub use channels::StreamExt;
 
 #[doc(hidden)]
 pub mod __private_helper;
@@ -86,7 +88,7 @@ static CHANNELS_BUS: OnceLock<Channels> = OnceLock::new();
 /// `OnceLock`.
 pub fn init_channels(buffer: usize, kind: ChannelKind) {
     let (emitter, receiver) = build_channels(buffer, kind);
-    let channel_handler = Channels::new(Some(emitter), Some(receiver));
+    let channel_handler = Channels::new(emitter, receiver);
     let _ = CHANNELS_BUS.set(channel_handler);
 }
 
@@ -102,7 +104,7 @@ pub fn init_channels(buffer: usize, kind: ChannelKind) {
 /// multiple independent status streams.
 pub fn create_channels(buffer: usize, kind: ChannelKind) -> Channels {
     let (emitter, receiver) = build_channels(buffer, kind);
-    let channel_handler = Channels::new(Some(emitter), Some(receiver));
+    let channel_handler = Channels::new(emitter, receiver);
     channel_handler
 }
 
@@ -157,16 +159,12 @@ pub fn subscribe() -> Option<Arc<Receiver>> {
 // Note:
 // These functions allow the macros to emit through either an explicit emitter
 // or no emitter (`None`) without duplicating logic.
-pub fn status_emit_sync(emitter: Option<&Emitter>, status: StatusEvent) {
-    if let Some(e) = emitter {
-        e.emit_sync(status);
-    }
+pub fn status_emit_sync(emitter: &Emitter, se: StatusEvent) {
+    emitter.emit_sync(se);
 }
 
-pub async fn status_emit_async(emitter: Option<&Emitter>, status: StatusEvent) {
-    if let Some(e) = emitter {
-        e.emit_async(status).await;
-    }
+pub async fn status_emit_async(emitter: &Emitter, se: StatusEvent) {
+    emitter.emit_async(se).await;
 }
 
 // ==========================
