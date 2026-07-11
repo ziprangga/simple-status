@@ -44,7 +44,7 @@
 //!..
 
 mod channels;
-mod status;
+mod status_event;
 
 #[macro_use]
 mod macros;
@@ -61,9 +61,9 @@ pub use channels::MpscEmitter;
 pub use channels::MpscReceiver;
 pub use channels::Receiver;
 pub use channels::ReceiverHandler;
-pub use status::Event;
-pub use status::StatusEvent;
-pub use status::StatusFormatter;
+pub use status_event::Event;
+pub use status_event::StatusEvent;
+pub use status_event::StatusFormatter;
 
 // Re-export commonly used stream extension traits for convenience.
 pub use channels::StreamExt;
