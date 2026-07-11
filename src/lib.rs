@@ -65,8 +65,8 @@ pub use status_event::Event;
 pub use status_event::StatusEvent;
 pub use status_event::StatusFormatter;
 
-// Re-export commonly used stream extension traits for convenience.
-pub use channels::StreamExt;
+// // Re-export commonly used stream extension traits for convenience.
+pub use futures::StreamExt;
 
 #[doc(hidden)]
 pub mod __private_helper;

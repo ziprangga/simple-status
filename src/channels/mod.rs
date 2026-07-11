@@ -36,9 +36,6 @@ use std::future::Future;
 use std::pin::Pin;
 use std::sync::Arc;
 
-// Re-export commonly used stream extension traits for convenience.
-pub use futures::StreamExt;
-
 pub type BoxFuture<'a, T> = Pin<Box<dyn Future<Output = T> + Send + 'a>>;
 pub type BoxStream<'a, T> = Pin<Box<dyn Stream<Item = T> + Send + 'a>>;
 
