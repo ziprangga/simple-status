@@ -3,22 +3,22 @@ use simple_status::{ChannelKind, create_channels, status, status_emit};
 #[test]
 fn test_status_macro() {
     let s = status!(
-        stage: "stage",
+        action: "action",
         current: 1,
         total: 10,
         message: "hello",
     );
 
-    assert_eq!(s.event().stage().as_deref(), Some("stage"));
+    assert_eq!(s.event().action(), Some("action"));
     assert_eq!(s.event().current(), Some(1));
     assert_eq!(s.event().total(), Some(10));
-    assert_eq!(s.event().message().as_deref(), Some("hello"));
+    assert_eq!(s.message().as_deref(), Some("hello"));
 }
 
 #[test]
 fn test_status_format_message() {
     let s = status!("value {}", 42);
-    assert_eq!(s.event().message().as_deref(), Some("value 42"));
+    assert_eq!(s.message().as_deref(), Some("value 42"));
 }
 
 #[test]
@@ -32,7 +32,7 @@ fn test_mpsc_sync_emit_recv() {
     );
 
     let received = channels.recv_sync().unwrap();
-    assert_eq!(received.event().message().as_deref(), Some("sync mpsc"));
+    assert_eq!(received.message().as_deref(), Some("sync mpsc"));
 }
 
 #[test]
@@ -46,10 +46,7 @@ fn test_broadcast_sync_emit_recv() {
     );
 
     let received = channels.recv_sync().unwrap();
-    assert_eq!(
-        received.event().message().as_deref(),
-        Some("sync broadcast")
-    );
+    assert_eq!(received.message().as_deref(), Some("sync broadcast"));
 }
 
 #[tokio::test]
@@ -64,7 +61,7 @@ async fn test_async_emit_recv() {
     );
 
     let received = channels.recv_async().await.unwrap();
-    assert_eq!(received.event().message().as_deref(), Some("async test"));
+    assert_eq!(received.message().as_deref(), Some("async test"));
 }
 
 #[test]
@@ -79,10 +76,7 @@ fn test_macro_with_raw_reference_argument() {
     );
 
     let received = channels.recv_sync().unwrap();
-    assert_eq!(
-        received.event().message().as_deref(),
-        Some("raw reference test")
-    );
+    assert_eq!(received.message().as_deref(), Some("raw reference test"));
 }
 
 #[test]
@@ -97,10 +91,7 @@ fn test_macro_with_option_variable_argument() {
     );
 
     let received = channels.recv_sync().unwrap();
-    assert_eq!(
-        received.event().message().as_deref(),
-        Some("option variable test")
-    );
+    assert_eq!(received.message().as_deref(), Some("option variable test"));
 }
 
 #[test]
@@ -113,7 +104,7 @@ fn test_macro_with_raw_reference_format_fallback() {
 
     let received = channels.recv_sync().unwrap();
     assert_eq!(
-        received.event().message().as_deref(),
+        received.message().as_deref(),
         Some("fallback formatting with raw ref: 100")
     );
 }
@@ -130,10 +121,7 @@ async fn test_async_macro_with_option_and_raw_ref() {
         message: "async raw ref",
     );
     let received1 = channels.recv_async().await.unwrap();
-    assert_eq!(
-        received1.event().message().as_deref(),
-        Some("async raw ref")
-    );
+    assert_eq!(received1.message().as_deref(), Some("async raw ref"));
 
     // Test async path with option variable
     status_emit!(
@@ -142,8 +130,5 @@ async fn test_async_macro_with_option_and_raw_ref() {
         message: "async option var",
     );
     let received2 = channels.recv_async().await.unwrap();
-    assert_eq!(
-        received2.event().message().as_deref(),
-        Some("async option var")
-    );
+    assert_eq!(received2.message().as_deref(), Some("async option var"));
 }

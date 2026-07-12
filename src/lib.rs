@@ -63,7 +63,7 @@ pub use channels::Receiver;
 pub use channels::ReceiverHandler;
 pub use status_event::Event;
 pub use status_event::StatusEvent;
-pub use status_event::StatusFormatter;
+pub use status_event::StatusEventRenderer;
 
 // // Re-export commonly used stream extension traits for convenience.
 pub use futures::StreamExt;
@@ -129,12 +129,12 @@ pub fn stream() -> Option<BoxStream<'static, StatusEvent>> {
     channels_bus().stream()
 }
 
-pub fn emit_sync(status: StatusEvent) {
-    channels_bus().emit_sync(status);
+pub fn emit_sync(se: StatusEvent) {
+    channels_bus().emit_sync(se);
 }
 
-pub async fn emit_async(status: StatusEvent) {
-    channels_bus().emit_async(status).await;
+pub async fn emit_async(se: StatusEvent) {
+    channels_bus().emit_async(se).await;
 }
 
 pub fn recv_sync() -> Option<StatusEvent> {

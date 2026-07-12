@@ -13,19 +13,18 @@ mod __private {
     use crate::emit_sync;
     use crate::status_emit_async;
     use crate::status_emit_sync;
+    use std::borrow::Cow;
     use std::path::PathBuf;
 
     fn int_event_build(
-        stage: Option<String>,
+        action: Option<Cow<'static, str>>,
         current: Option<usize>,
         total: Option<usize>,
-        message: Option<String>,
-        path: Option<PathBuf>,
     ) -> Event {
         let mut builder = Event::builder();
 
-        if let Some(stage) = stage {
-            builder = builder.stage(stage);
+        if let Some(act) = action {
+            builder = builder.action(act);
         }
         if let Some(current) = current {
             builder = builder.current(current);
@@ -33,25 +32,30 @@ mod __private {
         if let Some(total) = total {
             builder = builder.total(total);
         }
-        if let Some(message) = message {
-            builder = builder.message(message);
-        }
-        if let Some(path) = path {
-            builder = builder.path(path);
-        }
 
         builder.build()
     }
 
     fn int_status_event_build(
-        stage: Option<String>,
+        action: Option<Cow<'static, str>>,
         current: Option<usize>,
         total: Option<usize>,
-        message: Option<String>,
+        message: Option<Cow<'static, str>>,
         path: Option<PathBuf>,
     ) -> StatusEvent {
-        let event = int_event_build(stage, current, total, message, path);
-        StatusEvent::new(event)
+        let event = int_event_build(action, current, total);
+        let mut status = StatusEvent::builder();
+        if let Some(m) = message {
+            status = status.message(m)
+        }
+
+        status = status.event(event);
+
+        if let Some(p) = path {
+            status = status.path(p)
+        }
+
+        status.build()
     }
 
     // =====================================================
@@ -72,20 +76,30 @@ mod __private {
         status_emit_async(emitter, se).await;
     }
 
+    pub fn opt_cow(value: Option<impl Into<Cow<'static, str>>>) -> Option<Cow<'static, str>> {
+        value.map(Into::into)
+    }
+
+    pub fn format_message(args: std::fmt::Arguments<'_>) -> Option<Cow<'static, str>> {
+        Some(Cow::Owned(args.to_string()))
+    }
+
     /// Constructs a `StatusEvent` object from optional fields passed by macros.
     pub fn build_status_event(
-        stage: Option<String>,
+        action: Option<Cow<'static, str>>,
         current: Option<usize>,
         total: Option<usize>,
-        message: Option<String>,
+        message: Option<Cow<'static, str>>,
         path: Option<PathBuf>,
     ) -> StatusEvent {
-        int_status_event_build(stage, current, total, message, path)
+        int_status_event_build(action, current, total, message, path)
     }
 }
 
 pub use self::__private::build_status_event;
+pub use self::__private::format_message;
 pub use self::__private::global_emit_async;
 pub use self::__private::global_emit_sync;
 pub use self::__private::ind_status_emit_async;
 pub use self::__private::ind_status_emit_sync;
+pub use self::__private::opt_cow;

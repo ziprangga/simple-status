@@ -56,7 +56,7 @@ impl AppState {
     }
 
     pub fn reset(&mut self) {
-        self.show_status.reset_event();
+        self.show_status = StatusEvent::default();
         self.source = StatusSource::default();
     }
 }

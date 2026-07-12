@@ -13,7 +13,7 @@
 //! same event to be rendered differently when needed.
 //!..
 
-use std::path::PathBuf;
+use std::borrow::Cow;
 
 /// A single status event.
 ///
@@ -27,13 +27,11 @@ use std::path::PathBuf;
 /// `Event` is intentionally immutable after construction. Modification is
 /// performed by creating a new event or replacing the event stored inside
 /// `Status`.
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Default, Clone, PartialEq, Eq)]
 pub struct Event {
-    stage: Option<String>,
+    action: Option<Cow<'static, str>>,
     current: Option<usize>,
     total: Option<usize>,
-    message: Option<String>,
-    path: Option<PathBuf>,
 }
 
 impl Event {
@@ -45,12 +43,12 @@ impl Event {
         EventBuilder::new()
     }
 
-    /// Returns the stage name, if present.
+    /// Returns the action name, if present.
     ///
     /// Doc:
-    /// Stages are free-form labels such as `"Build"` or `"Download"`.
-    pub fn stage(&self) -> Option<&str> {
-        self.stage.as_deref()
+    /// actions are free-form labels such as `"Build"` or `"Download"`.
+    pub fn action(&self) -> Option<&str> {
+        self.action.as_deref()
     }
 
     /// Returns the current progress value, if present.
@@ -61,16 +59,6 @@ impl Event {
     /// Returns the total progress value, if present.
     pub fn total(&self) -> Option<usize> {
         self.total
-    }
-
-    /// Returns the status message, if present.
-    pub fn message(&self) -> Option<&str> {
-        self.message.as_deref()
-    }
-
-    /// Returns the associated filesystem path, if present.
-    pub fn path(&self) -> Option<&PathBuf> {
-        self.path.as_ref()
     }
 }
 
@@ -98,9 +86,9 @@ impl EventBuilder {
         }
     }
 
-    /// Sets the event stage.
-    pub fn stage(mut self, stage: impl Into<String>) -> Self {
-        self.event.stage = Some(stage.into());
+    /// Sets the event action.
+    pub fn action(mut self, action: impl Into<Cow<'static, str>>) -> Self {
+        self.event.action = Some(action.into());
         self
     }
 
@@ -113,18 +101,6 @@ impl EventBuilder {
     /// Sets the total progress value.
     pub fn total(mut self, total: usize) -> Self {
         self.event.total = Some(total);
-        self
-    }
-
-    /// Sets the event message.
-    pub fn message(mut self, message: impl Into<String>) -> Self {
-        self.event.message = Some(message.into());
-        self
-    }
-
-    /// Sets the associated filesystem path.
-    pub fn path(mut self, path: PathBuf) -> Self {
-        self.event.path = Some(path);
         self
     }
 

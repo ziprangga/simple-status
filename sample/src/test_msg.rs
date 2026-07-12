@@ -42,7 +42,7 @@ pub fn independent_emit_sync_with_progress(emitter: &Emitter) {
     for current in 0..=total {
         status_emit!(
             emitter,
-            stage: "INDEPENDENT EMIT SYNC",
+            action: "INDEPENDENT EMIT SYNC",
             current: current,
             total: total,
             message: "build style",
@@ -57,7 +57,7 @@ pub async fn independent_emit_async_with_progress(emitter: &Emitter) {
         status_emit!(
             async,
             emitter,
-            stage: "INDEPENDENT EMIT ASYNC",
+            action: "INDEPENDENT EMIT ASYNC",
             current: current,
             total: total,
             message: "build style",
@@ -81,7 +81,7 @@ pub fn global_emit_sync_with_progress() {
 
     for current in 0..=total {
         status_emit!(
-            stage: "GLOBAL EMIT SYNC",
+            action: "GLOBAL EMIT SYNC",
             current: current,
             total: total,
             message: "build style",
@@ -95,7 +95,7 @@ pub async fn global_emit_async_with_progress() {
     for current in 0..=total {
         status_emit!(
             async,
-            stage: "GLOBAL EMIT ASYNC",
+            action: "GLOBAL EMIT ASYNC",
             current: current,
             total: total,
             message: "build style",

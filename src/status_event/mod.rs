@@ -4,7 +4,7 @@
 //! update.
 //!
 //! A status consists of an [`Event`], which stores the information to display,
-//! such as the current stage, progress, message, and optional filesystem path.
+//! such as the current action, progress, message, and optional filesystem path.
 //!
 //! [`Status`] acts as the container for the current event and provides:
 //!
@@ -20,7 +20,7 @@
 //! use simple_status::{Event, Status};
 //!
 //! let event = Event::builder()
-//!     .stage("Build")
+//!     .action("Build")
 //!     .current(2)
 //!     .total(5)
 //!     .message("Compiling")
@@ -44,7 +44,10 @@
 //!...
 
 mod event;
+mod renderer;
 pub use event::Event;
+use std::borrow::Cow;
+use std::path::PathBuf;
 
 /// A formatter for converting a [`Status`] into a string.
 ///
@@ -69,15 +72,32 @@ pub use event::Event;
 ///     format!("Status: {}", s)
 /// });
 /// ```
-pub trait StatusFormatter {
-    fn format(&self, status: &StatusEvent) -> String;
+// pub trait StatusFormatter {
+//     fn format(&self, status: &StatusEvent) -> String;
+// }
+
+// impl<F> StatusFormatter for F
+// where
+//     F: Fn(&StatusEvent) -> String,
+// {
+//     fn format(&self, status: &StatusEvent) -> String {
+//         (self)(status)
+//     }
+// }
+
+pub trait StatusEventRenderer {
+    type Output;
+
+    fn render(&self, status: &StatusEvent) -> Self::Output;
 }
 
-impl<F> StatusFormatter for F
+impl<F, O> StatusEventRenderer for F
 where
-    F: Fn(&StatusEvent) -> String,
+    F: Fn(&StatusEvent) -> O,
 {
-    fn format(&self, status: &StatusEvent) -> String {
+    type Output = O;
+
+    fn render(&self, status: &StatusEvent) -> Self::Output {
         (self)(status)
     }
 }
@@ -103,45 +123,75 @@ where
 /// - Keeping ownership simplifies the API and avoids lifetime propagation.
 #[derive(Debug, Default, Clone)]
 pub struct StatusEvent {
+    message: Option<Cow<'static, str>>,
     event: Event,
+    path: Option<PathBuf>,
 }
 
 impl StatusEvent {
-    /// Creates a new status from an event.
-    ///
-    /// Doc:
-    /// - Constructs a `Status` from an existing `Event`.
-    ///
-    /// Note:
-    /// - No validation is performed.
-    /// - The provided event becomes the current status.
-    pub fn new(event: Event) -> Self {
-        Self { event }
+    // /// Creates a new status from an event.
+    // ///
+    // /// Doc:
+    // /// - Constructs a `Status` from an existing `Event`.
+    // ///
+    // /// Note:
+    // /// - No validation is performed.
+    // /// - The provided event becomes the current status.
+    // pub fn new(message: Option<String>, event: Event, path: Option<PathBuf>) -> Self {
+    //     Self {
+    //         message,
+    //         event,
+    //         path,
+    //     }
+    // }
+
+    pub fn builder() -> StatusEventBuilder {
+        StatusEventBuilder::new()
     }
 
-    /// Replaces the current event with an empty event.
-    ///
-    /// After calling this method, all event fields are cleared.
-    pub fn reset_event(&mut self) {
-        self.event = Event::default();
+    /// Returns the status message, if present.
+    pub fn message(&self) -> Option<&str> {
+        self.message.as_deref()
     }
+
+    // /// Sets the event message.
+    // pub fn message_mut(&mut self, message: impl Into<String>) {
+    //     self.message = Some(message.into())
+    // }
+
+    // /// Replaces the current event with an empty event.
+    // ///
+    // /// After calling this method, all event fields are cleared.
+    // pub fn reset_event(&mut self) {
+    //     self.event = Event::default();
+    // }
 
     /// Returns a shared reference to the current event.
     pub fn event(&self) -> &Event {
         &self.event
     }
 
-    /// Returns a mutable reference to the current event.
-    ///
-    /// This allows modifying the stored event without replacing it.
-    pub fn event_mut(&mut self) -> &mut Event {
-        &mut self.event
+    // /// Returns a mutable reference to the current event.
+    // ///
+    // /// This allows modifying the stored event without replacing it.
+    // pub fn event_mut(&mut self) -> &mut Event {
+    //     &mut self.event
+    // }
+
+    // /// Replaces the current event.
+    // pub fn set_event(&mut self, event: Event) {
+    //     self.event = event;
+    // }
+
+    /// Returns the associated filesystem path, if present.
+    pub fn path(&self) -> Option<&PathBuf> {
+        self.path.as_ref()
     }
 
-    /// Replaces the current event.
-    pub fn set_event(&mut self, event: Event) {
-        self.event = event;
-    }
+    // /// Sets the associated filesystem path.
+    // pub fn path_mut(&mut self, path: PathBuf) {
+    //     self.path = Some(path);
+    // }
 
     /// Formats this status using a custom formatter.
     ///
@@ -158,47 +208,48 @@ impl StatusEvent {
     ///     format!("> {}", status)
     /// });
     /// ```
-    pub fn format_with<F>(&self, f: F) -> String
+    // pub fn format_with<F>(&self, f: F) -> String
+    // where
+    //     F: StatusFormatter,
+    // {
+    //     f.format(self)
+    // }
+    pub fn render_with<R>(&self, renderer: R) -> R::Output
     where
-        F: StatusFormatter,
+        R: StatusEventRenderer,
     {
-        f.format(self)
+        renderer.render(self)
     }
 }
 
-impl std::fmt::Display for StatusEvent {
-    // Note:
-    // Formatting order is fixed:
-    //
-    //     [stage] current/total message path
-    //
-    // Missing fields are skipped completely.
-    //
-    // Keep this implementation allocation-free. Avoid building intermediate
-    // strings unless necessary.
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let e = &self.event();
+#[derive(Debug, Default, Clone)]
+pub struct StatusEventBuilder {
+    status_event: StatusEvent,
+}
 
-        if let Some(stage) = &e.stage() {
-            write!(f, "[{}] ", stage)?;
+impl StatusEventBuilder {
+    pub fn new() -> Self {
+        Self {
+            status_event: StatusEvent::default(),
         }
+    }
 
-        if let (Some(c), Some(t)) = (e.current(), e.total()) {
-            write!(f, "{}/{} ", c, t)?;
-        } else if let Some(c) = e.current() {
-            write!(f, "{} ", c)?;
-        } else if let Some(t) = e.total() {
-            write!(f, "{} ", t)?;
-        }
+    pub fn message(mut self, msg: impl Into<Cow<'static, str>>) -> Self {
+        self.status_event.message = Some(msg.into());
+        self
+    }
 
-        if let Some(msg) = &e.message() {
-            write!(f, "{}", msg)?;
-        }
+    pub fn event(mut self, event: Event) -> Self {
+        self.status_event.event = event;
+        self
+    }
 
-        if let Some(path) = &e.path() {
-            write!(f, " {}", path.display())?;
-        }
+    pub fn path(mut self, path: PathBuf) -> Self {
+        self.status_event.path = Some(path);
+        self
+    }
 
-        Ok(())
+    pub fn build(self) -> StatusEvent {
+        self.status_event
     }
 }

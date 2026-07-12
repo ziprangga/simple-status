@@ -14,7 +14,7 @@
 /// using `Event::builder()`.
 ///
 /// Supported fields:
-/// - `stage`
+/// - `action`
 /// - `current`
 /// - `total`
 /// - `message`
@@ -30,7 +30,7 @@
 #[clippy::format_args]
 macro_rules! status {
     (
-        $(stage: $stage:expr,)?
+        $(action: $action:expr,)?
         $(current: $current:expr,)?
         $(total: $total:expr,)?
         $(message: $message:expr,)?
@@ -38,23 +38,23 @@ macro_rules! status {
     ) => {{
 
         $crate::__private_helper::build_status_event(
-            $crate::status!(@opt_str $($stage)?),
-            $crate::status!(@opt_usize $($current)?),
+            $crate::__private_helper::opt_cow($crate::status!(@opt_str $($action)?)),
+            ($crate::status!(@opt_usize $($current)?)),
             $crate::status!(@opt_usize $($total)?),
-            $crate::status!(@opt_str $($message)?),
+            $crate::__private_helper::opt_cow($crate::status!(@opt_str $($message)?)),
             $crate::status!(@opt_path $($path)?),
         )
     }};
 
-    (@opt_str $value:expr) => { Some($value.into()) };
-    (@opt_str) => { None };
+    (@opt_str $value:expr) => { Some($value) };
+    (@opt_str) => { None::<&'static str> };
     (@opt_usize $value:expr) => { Some($value) };
     (@opt_usize) => { None };
     (@opt_path $value:expr) => { Some($value) };
     (@opt_path) => { None };
 
     ($($arg:tt)+) => {{
-        $crate::__private_helper::build_status_event(None, None, None, Some(format!($($arg)+)), None)
+        $crate::__private_helper::build_status_event(None, None, None, $crate::__private_helper::format_message(format_args!($($arg)+)), None)
     }};
 
 }
@@ -83,10 +83,10 @@ macro_rules! status_emit {
     // ==================================
 
     // Instance Async (with key-value pairs)
-    (async, $emitter:expr, $(stage: $stage:expr,)? $(current: $current:expr,)? $(total: $total:expr,)? $(message: $message:expr,)? $(path: $path:expr $(,)?)?) => {{
+    (async, $emitter:expr, $(action: $action:expr,)? $(current: $current:expr,)? $(total: $total:expr,)? $(message: $message:expr,)? $(path: $path:expr $(,)?)?) => {{
         $crate::__private_helper::ind_status_emit_async(
             $emitter,
-            $crate::status!($(stage: $stage,)? $(current: $current,)? $(total: $total,)? $(message: $message,)? $(path: $path,)?)
+            $crate::status!($(action: $action,)? $(current: $current,)? $(total: $total,)? $(message: $message,)? $(path: $path,)?)
         ).await;
     }};
 
@@ -100,8 +100,8 @@ macro_rules! status_emit {
     }};
 
     // Global Async (with key-value pairs)
-    (async, stage: $stage:expr, $($rest:tt)*) => {{
-        $crate::__private_helper::global_emit_async($crate::status!(stage: $stage, $($rest)*)).await;
+    (async, action: $action:expr, $($rest:tt)*) => {{
+        $crate::__private_helper::global_emit_async($crate::status!(action: $action, $($rest)*)).await;
     }};
     (async, current: $current:expr, $($rest:tt)*) => {{
         $crate::__private_helper::global_emit_async($crate::status!(current: $current, $($rest)*)).await;
@@ -126,10 +126,10 @@ macro_rules! status_emit {
     // ==================================
 
     // Instance Sync (with key-value pairs)
-    ($emitter:expr, $(stage: $stage:expr,)? $(current: $current:expr,)? $(total: $total:expr,)? $(message: $message:expr,)? $(path: $path:expr $(,)?)?) => {{
+    ($emitter:expr, $(action: $action:expr,)? $(current: $current:expr,)? $(total: $total:expr,)? $(message: $message:expr,)? $(path: $path:expr $(,)?)?) => {{
         $crate::__private_helper::ind_status_emit_sync(
             $emitter,
-            $crate::status!($(stage: $stage,)? $(current: $current,)? $(total: $total,)? $(message: $message,)? $(path: $path,)?)
+            $crate::status!($(action: $action,)? $(current: $current,)? $(total: $total,)? $(message: $message,)? $(path: $path,)?)
         );
     }};
 
@@ -142,8 +142,8 @@ macro_rules! status_emit {
     }};
 
     // Global Sync (with key-value pairs)
-    (stage: $stage:expr, $($rest:tt)*) => {{
-        $crate::__private_helper::global_emit_sync($crate::status!(stage: $stage, $($rest)*));
+    (action: $action:expr, $($rest:tt)*) => {{
+        $crate::__private_helper::global_emit_sync($crate::status!(action: $action, $($rest)*));
     }};
     (current: $current:expr, $($rest:tt)*) => {{
         $crate::__private_helper::global_emit_sync($crate::status!(current: $current, $($rest)*));
