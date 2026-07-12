@@ -84,7 +84,7 @@ macro_rules! status_emit {
 
     // Instance Async (with key-value pairs)
     (async, $emitter:expr, $(stage: $stage:expr,)? $(current: $current:expr,)? $(total: $total:expr,)? $(message: $message:expr,)? $(path: $path:expr $(,)?)?) => {{
-        $crate::status_emit_async(
+        $crate::__private_helper::ind_status_emit_async(
             $emitter,
             $crate::status!($(stage: $stage,)? $(current: $current,)? $(total: $total,)? $(message: $message,)? $(path: $path,)?)
         ).await;
@@ -93,7 +93,7 @@ macro_rules! status_emit {
     // Instance Async (with string format / raw arguments)
     // Triggered when the second argument is an expression but the remaining tokens are format strings
     (async, $emitter:expr, $fmt:expr, $($arg:tt)+) => {{
-        $crate::status_emit_async(
+        $crate::__private_helper::ind_status_emit_async(
             $emitter,
             $crate::status!($fmt, $($arg)+)
         ).await;
@@ -101,24 +101,24 @@ macro_rules! status_emit {
 
     // Global Async (with key-value pairs)
     (async, stage: $stage:expr, $($rest:tt)*) => {{
-        $crate::emit_async($crate::status!(stage: $stage, $($rest)*)).await;
+        $crate::__private_helper::global_emit_async($crate::status!(stage: $stage, $($rest)*)).await;
     }};
     (async, current: $current:expr, $($rest:tt)*) => {{
-        $crate::emit_async($crate::status!(current: $current, $($rest)*)).await;
+        $crate::__private_helper::global_emit_async($crate::status!(current: $current, $($rest)*)).await;
     }};
     (async, total: $total:expr, $($rest:tt)*) => {{
-        $crate::emit_async($crate::status!(total: $total, $($rest)*)).await;
+        $crate::__private_helper::global_emit_async($crate::status!(total: $total, $($rest)*)).await;
     }};
     (async, message: $message:expr, $($rest:tt)*) => {{
-        $crate::emit_async($crate::status!(message: $message, $($rest)*)).await;
+        $crate::__private_helper::global_emit_async($crate::status!(message: $message, $($rest)*)).await;
     }};
     (async, path: $path:expr, $($rest:tt)*) => {{
-        $crate::emit_async($crate::status!(path: $path, $($rest)*)).await;
+        $crate::__private_helper::global_emit_async($crate::status!(path: $path, $($rest)*)).await;
     }};
 
     // Global Async (fallback for arbitrary format strings / single text)
     (async, $($arg:tt)+) => {{
-        $crate::emit_async($crate::status!($($arg)+)).await;
+        $crate::__private_helper::global_emit_async($crate::status!($($arg)+)).await;
     }};
 
     // ==================================
@@ -127,7 +127,7 @@ macro_rules! status_emit {
 
     // Instance Sync (with key-value pairs)
     ($emitter:expr, $(stage: $stage:expr,)? $(current: $current:expr,)? $(total: $total:expr,)? $(message: $message:expr,)? $(path: $path:expr $(,)?)?) => {{
-        $crate::status_emit_sync(
+        $crate::__private_helper::ind_status_emit_sync(
             $emitter,
             $crate::status!($(stage: $stage,)? $(current: $current,)? $(total: $total,)? $(message: $message,)? $(path: $path,)?)
         );
@@ -135,7 +135,7 @@ macro_rules! status_emit {
 
     // Instance Sync (with string format / raw arguments)
     ($emitter:expr, $fmt:expr, $($arg:tt)+) => {{
-        $crate::status_emit_sync(
+        $crate::__private_helper::ind_status_emit_sync(
             $emitter,
             $crate::status!($fmt, $($arg)+)
         );
@@ -143,23 +143,23 @@ macro_rules! status_emit {
 
     // Global Sync (with key-value pairs)
     (stage: $stage:expr, $($rest:tt)*) => {{
-        $crate::emit_sync($crate::status!(stage: $stage, $($rest)*));
+        $crate::__private_helper::global_emit_sync($crate::status!(stage: $stage, $($rest)*));
     }};
     (current: $current:expr, $($rest:tt)*) => {{
-        $crate::emit_sync($crate::status!(current: $current, $($rest)*));
+        $crate::__private_helper::global_emit_sync($crate::status!(current: $current, $($rest)*));
     }};
     (total: $total:expr, $($rest:tt)*) => {{
-        $crate::emit_sync($crate::status!(total: $total, $($rest)*));
+        $crate::__private_helper::global_emit_sync($crate::status!(total: $total, $($rest)*));
     }};
     (message: $message:expr, $($rest:tt)*) => {{
-        $crate::emit_sync($crate::status!(message: $message, $($rest)*));
+        $crate::__private_helper::global_emit_sync($crate::status!(message: $message, $($rest)*));
     }};
     (path: $path:expr, $($rest:tt)*) => {{
-        $crate::emit_sync($crate::status!(path: $path, $($rest)*));
+        $crate::__private_helper::global_emit_sync($crate::status!(path: $path, $($rest)*));
     }};
 
     // Global Sync (fallback for arbitrary format strings / single text)
     ($($arg:tt)+) => {{
-        $crate::emit_sync($crate::status!($($arg)+));
+        $crate::__private_helper::global_emit_sync($crate::status!($($arg)+));
     }};
 }

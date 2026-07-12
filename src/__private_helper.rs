@@ -6,51 +6,14 @@
 // These items are not part of the public API and may change without notice.
 #[doc(hidden)]
 mod __private {
-    // use crate::Emitter;
+    use crate::Emitter;
     use crate::Event;
     use crate::StatusEvent;
+    use crate::emit_async;
+    use crate::emit_sync;
+    use crate::status_emit_async;
+    use crate::status_emit_sync;
     use std::path::PathBuf;
-
-    // /// Conversion into an optional emitter reference.
-    // ///
-    // /// Doc:
-    // /// Provides a uniform way to accept either an `&Emitter` or an
-    // /// `Option<&Emitter>` and normalize them into `Option<&Emitter>`.
-    // ///
-    // /// Note:
-    // /// This trait is primarily intended for API ergonomics
-    // pub trait IntoEmitter<'a> {
-    //     /// Converts this value into an optional emitter reference.
-    //     ///
-    //     /// Note:
-    //     /// Implementations may return `None` when no emitter is available.
-    //     /// The conversion consumes `self`, though implementors are generally
-    //     /// lightweight reference-based types.
-    //     fn into_emitter(self) -> Option<&'a Emitter>;
-    // }
-
-    // impl<'a> IntoEmitter<'a> for Option<&'a Emitter> {
-    //     /// Returns the emitter unchanged.
-    //     ///
-    //     /// Note:
-    //     /// This implementation allows APIs accepting `IntoEmitter` to receive an
-    //     /// optional emitter directly.
-    //     fn into_emitter(self) -> Option<&'a Emitter> {
-    //         self
-    //     }
-    // }
-
-    // impl<'a> IntoEmitter<'a> for &'a Emitter {
-    //     /// Wraps the emitter in `Some`.
-    //     ///
-    //     /// Note:
-    //     /// This implementation allows APIs accepting `IntoEmitter` to receive a
-    //     /// concrete emitter reference without requiring callers to construct
-    //     /// `Some(...)` explicitly.
-    //     fn into_emitter(self) -> Option<&'a Emitter> {
-    //         Some(self)
-    //     }
-    // }
 
     fn int_event_build(
         stage: Option<String>,
@@ -93,12 +56,21 @@ mod __private {
 
     // =====================================================
 
-    // pub fn into_emitter_opt<'a, E>(emitter: E) -> Option<&'a Emitter>
-    // where
-    //     E: IntoEmitter<'a>,
-    // {
-    //     emitter.into_emitter()
-    // }
+    pub fn global_emit_sync(se: StatusEvent) {
+        emit_sync(se);
+    }
+
+    pub async fn global_emit_async(se: StatusEvent) {
+        emit_async(se).await;
+    }
+
+    pub fn ind_status_emit_sync(emitter: &Emitter, se: StatusEvent) {
+        status_emit_sync(emitter, se);
+    }
+
+    pub async fn ind_status_emit_async(emitter: &Emitter, se: StatusEvent) {
+        status_emit_async(emitter, se).await;
+    }
 
     /// Constructs a `StatusEvent` object from optional fields passed by macros.
     pub fn build_status_event(
@@ -113,4 +85,7 @@ mod __private {
 }
 
 pub use self::__private::build_status_event;
-// pub use self::__private::into_emitter_opt;
+pub use self::__private::global_emit_async;
+pub use self::__private::global_emit_sync;
+pub use self::__private::ind_status_emit_async;
+pub use self::__private::ind_status_emit_sync;
