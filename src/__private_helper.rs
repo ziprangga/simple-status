@@ -16,6 +16,28 @@ mod __private {
     use std::borrow::Cow;
     use std::path::PathBuf;
 
+    pub trait IntoCowOpt {
+        fn into_cow_opt(self) -> Option<Cow<'static, str>>;
+    }
+
+    impl IntoCowOpt for &'static str {
+        fn into_cow_opt(self) -> Option<Cow<'static, str>> {
+            Some(Cow::Borrowed(self))
+        }
+    }
+
+    impl IntoCowOpt for String {
+        fn into_cow_opt(self) -> Option<Cow<'static, str>> {
+            Some(Cow::Owned(self))
+        }
+    }
+
+    impl<T: IntoCowOpt> IntoCowOpt for Option<T> {
+        fn into_cow_opt(self) -> Option<Cow<'static, str>> {
+            self.and_then(|x| x.into_cow_opt())
+        }
+    }
+
     fn int_event_build(
         action: Option<Cow<'static, str>>,
         current: Option<usize>,
@@ -36,16 +58,23 @@ mod __private {
         builder.build()
     }
 
+    fn int_into_cow_opt(m: impl IntoCowOpt) -> Option<Cow<'static, str>> {
+        m.into_cow_opt()
+    }
+
     fn int_status_event_build(
-        action: Option<Cow<'static, str>>,
+        action: impl IntoCowOpt,
         current: Option<usize>,
         total: Option<usize>,
-        message: Option<Cow<'static, str>>,
+        message: impl IntoCowOpt,
         path: Option<PathBuf>,
     ) -> StatusEvent {
-        let event = int_event_build(action, current, total);
+        let action_opt = int_into_cow_opt(action);
+        let event = int_event_build(action_opt, current, total);
         let mut status = StatusEvent::builder();
-        if let Some(m) = message {
+
+        let message_opt = int_into_cow_opt(message);
+        if let Some(m) = message_opt {
             status = status.message(m)
         }
 
@@ -76,30 +105,37 @@ mod __private {
         status_emit_async(emitter, se).await;
     }
 
-    pub fn opt_cow(value: Option<impl Into<Cow<'static, str>>>) -> Option<Cow<'static, str>> {
-        value.map(Into::into)
-    }
+    // pub fn opt_cow(value: Option<impl Into<Cow<'static, str>>>) -> Option<Cow<'static, str>> {
+    //     value.map(Into::into)
+    // }
 
-    pub fn format_message(args: std::fmt::Arguments<'_>) -> Option<Cow<'static, str>> {
-        Some(Cow::Owned(args.to_string()))
-    }
+    // pub fn format_message(args: std::fmt::Arguments<'_>) -> Option<Cow<'static, str>> {
+    //     Some(Cow::Owned(args.to_string()))
+    // }
 
     /// Constructs a `StatusEvent` object from optional fields passed by macros.
     pub fn build_status_event(
-        action: Option<Cow<'static, str>>,
+        action: impl IntoCowOpt,
         current: Option<usize>,
         total: Option<usize>,
-        message: Option<Cow<'static, str>>,
+        message: impl IntoCowOpt,
         path: Option<PathBuf>,
     ) -> StatusEvent {
         int_status_event_build(action, current, total, message, path)
     }
 }
 
+#[doc(hidden)]
 pub use self::__private::build_status_event;
-pub use self::__private::format_message;
+
+#[doc(hidden)]
 pub use self::__private::global_emit_async;
+
+#[doc(hidden)]
 pub use self::__private::global_emit_sync;
+
+#[doc(hidden)]
 pub use self::__private::ind_status_emit_async;
+
+#[doc(hidden)]
 pub use self::__private::ind_status_emit_sync;
-pub use self::__private::opt_cow;

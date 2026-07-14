@@ -26,7 +26,7 @@ use std::borrow::Cow;
 /// Note:
 /// `Event` is intentionally immutable after construction. Modification is
 /// performed by creating a new event or replacing the event stored inside
-/// `Status`.
+/// `StatusEvent`.
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
 pub struct Event {
     action: Option<Cow<'static, str>>,
