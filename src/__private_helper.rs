@@ -8,6 +8,7 @@
 mod __private {
     use crate::Emitter;
     use crate::Event;
+    use crate::NoId;
     use crate::StatusEvent;
     use crate::emit_async;
     use crate::emit_sync;
@@ -62,29 +63,31 @@ mod __private {
         m.into_cow_opt()
     }
 
-    fn int_status_event_build(
+    fn int_status_event_build_id<I>(
+        id: I,
         action: impl IntoCowOpt,
         current: Option<usize>,
         total: Option<usize>,
         message: impl IntoCowOpt,
         path: Option<PathBuf>,
-    ) -> StatusEvent {
+    ) -> StatusEvent<I> {
         let action_opt = int_into_cow_opt(action);
         let event = int_event_build(action_opt, current, total);
-        let mut status = StatusEvent::builder();
+
+        let mut status_event = StatusEvent::builder().id(id);
 
         let message_opt = int_into_cow_opt(message);
         if let Some(m) = message_opt {
-            status = status.message(m)
+            status_event = status_event.message(m)
         }
 
-        status = status.event(event);
+        status_event = status_event.event(event);
 
         if let Some(p) = path {
-            status = status.path(p)
+            status_event = status_event.path(p)
         }
 
-        status.build()
+        status_event.build()
     }
 
     // =====================================================
@@ -105,28 +108,35 @@ mod __private {
         status_emit_async(emitter, se).await;
     }
 
-    // pub fn opt_cow(value: Option<impl Into<Cow<'static, str>>>) -> Option<Cow<'static, str>> {
-    //     value.map(Into::into)
-    // }
-
-    // pub fn format_message(args: std::fmt::Arguments<'_>) -> Option<Cow<'static, str>> {
-    //     Some(Cow::Owned(args.to_string()))
-    // }
-
-    /// Constructs a `StatusEvent` object from optional fields passed by macros.
-    pub fn build_status_event(
+    /// Constructs a `StatusEvent` object from optional fields passed by macros without id.
+    pub fn build_status_event_no_id(
         action: impl IntoCowOpt,
         current: Option<usize>,
         total: Option<usize>,
         message: impl IntoCowOpt,
         path: Option<PathBuf>,
-    ) -> StatusEvent {
-        int_status_event_build(action, current, total, message, path)
+    ) -> StatusEvent<NoId> {
+        int_status_event_build_id(NoId, action, current, total, message, path)
+    }
+
+    /// Constructs a `StatusEvent` object from optional fields passed by macros with id.
+    pub fn build_status_event_id<I>(
+        id: I,
+        action: impl IntoCowOpt,
+        current: Option<usize>,
+        total: Option<usize>,
+        message: impl IntoCowOpt,
+        path: Option<PathBuf>,
+    ) -> StatusEvent<I> {
+        int_status_event_build_id(id, action, current, total, message, path)
     }
 }
 
 #[doc(hidden)]
-pub use self::__private::build_status_event;
+pub use self::__private::build_status_event_id;
+
+#[doc(hidden)]
+pub use self::__private::build_status_event_no_id;
 
 #[doc(hidden)]
 pub use self::__private::global_emit_async;

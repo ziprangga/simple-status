@@ -62,6 +62,7 @@ pub use channels::MpscReceiver;
 pub use channels::Receiver;
 pub use channels::ReceiverHandler;
 pub use status_event::Event;
+pub use status_event::NoId;
 pub use status_event::StatusEvent;
 pub use status_event::StatusEventRenderer;
 

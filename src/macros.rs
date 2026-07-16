@@ -16,6 +16,7 @@
 #[clippy::format_args]
 macro_rules! __status {
     (
+        $(id: $id:expr,)?
         $(action: $action:expr,)?
         $(current: $current:expr,)?
         $(total: $total:expr,)?
@@ -23,41 +24,89 @@ macro_rules! __status {
         $(path: $path:expr $(,)?)?
     ) => {{
 
-        $crate::__private_helper::build_status_event(
-            $crate::status!(@opt_str $($action)?),
-            $crate::status!(@opt_usize $($current)?),
-            $crate::status!(@opt_usize $($total)?),
-           $crate::status!(@opt_str $($message)?),
-            $crate::status!(@opt_path $($path)?),
+        $crate::__status!(@build
+            $($id)?
+            ;
+            $crate::__status!(@opt_str $($action)?),
+            $crate::__status!(@opt_usize $($current)?),
+            $crate::__status!(@opt_usize $($total)?),
+            $crate::__status!(@opt_str $($message)?),
+            $crate::__status!(@opt_path $($path)?)
         )
     }};
 
+    ($(id: $id:expr,)? $message:expr) => {{
+            $crate::__status!(@build
+                $($id)?
+                ;
+                None::<&'static str>,
+                None,
+                None,
+                $message,
+                None
+            )
+        }};
+
+    ($(id: $id:expr,)? $fmt:expr, $($arg:tt)+) => {{
+            $crate::__status!(@build
+                $($id)?
+                ;
+                None::<&'static str>,
+                None,
+                None,
+                format!($fmt, $($arg)+),
+                None
+            )
+        }};
+
+    // --------------------------
+    // internal id dispatch
+    // --------------------------
+
+    (@build
+        $id:expr;
+        $action:expr,
+        $current:expr,
+        $total:expr,
+        $message:expr,
+        $path:expr
+    ) => {
+        $crate::__private_helper::build_status_event_id(
+            $id,
+            $action,
+            $current,
+            $total,
+            $message,
+            $path,
+        )
+    };
+
+    (@build
+        ;
+        $action:expr,
+        $current:expr,
+        $total:expr,
+        $message:expr,
+        $path:expr
+    ) => {
+        $crate::__private_helper::build_status_event_no_id(
+            $action,
+            $current,
+            $total,
+            $message,
+            $path,
+        )
+    };
+
+    // --------------------------
+    // option normalization
+    // --------------------------
     (@opt_str $value:expr) => { Some($value) };
     (@opt_str) => { None::<&'static str> };
     (@opt_usize $value:expr) => { Some($value) };
     (@opt_usize) => { None };
     (@opt_path $value:expr) => { Some($value) };
     (@opt_path) => { None };
-
-    ($message:expr) => {{
-            $crate::__private_helper::build_status_event(
-                None::<&'static str>,
-                None,
-                None,
-                $message,
-                None,
-            )
-        }};
-
-    ($fmt:expr, $($arg:tt)+) => {{
-            $crate::__private_helper::build_status_event(
-                None::<&'static str>,
-                None,
-                None,
-                format!($fmt, $($arg)+),
-                None,
-            )
-        }};
 
 }
 
@@ -275,102 +324,3 @@ macro_rules! status_emit {
         $crate::__status_emit!($($tt)*)
     }};
 }
-
-// ======================
-// Standardizes the provided emitter expression by converting it
-// into the required emitter type via the internal `IntoEmitter` trait.
-// #[doc(hidden)]
-// #[macro_export]
-// #[clippy::format_args]
-// macro_rules! __into_emitter {
-//     ($emitter:expr) => {{ $crate::__private_helper::into_emitter_opt($emitter) }};
-// }
-// the old status_emit macro
-// #[macro_export]
-// #[clippy::format_args]
-// macro_rules! status_emit {
-//     // ==================================
-//     // ASYNC MODE
-//     // ==================================
-
-//     // Instance Async (with key-value pairs)
-//     (async, $emitter:expr, $(action: $action:expr,)? $(current: $current:expr,)? $(total: $total:expr,)? $(message: $message:expr,)? $(path: $path:expr $(,)?)?) => {{
-//         $crate::__private_helper::ind_status_emit_async(
-//             $emitter,
-//             $crate::status!($(action: $action,)? $(current: $current,)? $(total: $total,)? $(message: $message,)? $(path: $path,)?)
-//         ).await;
-//     }};
-
-//     // Instance Async (with string format / raw arguments)
-//     // Triggered when the second argument is an expression but the remaining tokens are format strings
-//     (async, $emitter:expr, $fmt:expr, $($arg:tt)+) => {{
-//         $crate::__private_helper::ind_status_emit_async(
-//             $emitter,
-//             $crate::status!($fmt, $($arg)+)
-//         ).await;
-//     }};
-
-//     // Global Async (with key-value pairs)
-//     (async, action: $action:expr, $($rest:tt)*) => {{
-//         $crate::__private_helper::global_emit_async($crate::status!(action: $action, $($rest)*)).await;
-//     }};
-//     (async, current: $current:expr, $($rest:tt)*) => {{
-//         $crate::__private_helper::global_emit_async($crate::status!(current: $current, $($rest)*)).await;
-//     }};
-//     (async, total: $total:expr, $($rest:tt)*) => {{
-//         $crate::__private_helper::global_emit_async($crate::status!(total: $total, $($rest)*)).await;
-//     }};
-//     (async, message: $message:expr, $($rest:tt)*) => {{
-//         $crate::__private_helper::global_emit_async($crate::status!(message: $message, $($rest)*)).await;
-//     }};
-//     (async, path: $path:expr, $($rest:tt)*) => {{
-//         $crate::__private_helper::global_emit_async($crate::status!(path: $path, $($rest)*)).await;
-//     }};
-
-//     // Global Async (fallback for arbitrary format strings / single text)
-//     (async, $($arg:tt)+) => {{
-//         $crate::__private_helper::global_emit_async($crate::status!($($arg)+)).await;
-//     }};
-
-//     // ==================================
-//     // SYNC MODE
-//     // ==================================
-
-//     // Instance Sync (with key-value pairs)
-//     ($emitter:expr, $(action: $action:expr,)? $(current: $current:expr,)? $(total: $total:expr,)? $(message: $message:expr,)? $(path: $path:expr $(,)?)?) => {{
-//         $crate::__private_helper::ind_status_emit_sync(
-//             $emitter,
-//             $crate::status!($(action: $action,)? $(current: $current,)? $(total: $total,)? $(message: $message,)? $(path: $path,)?)
-//         );
-//     }};
-
-//     // Instance Sync (with string format / raw arguments)
-//     ($emitter:expr, $fmt:expr, $($arg:tt)+) => {{
-//         $crate::__private_helper::ind_status_emit_sync(
-//             $emitter,
-//             $crate::status!($fmt, $($arg)+)
-//         );
-//     }};
-
-//     // Global Sync (with key-value pairs)
-//     (action: $action:expr, $($rest:tt)*) => {{
-//         $crate::__private_helper::global_emit_sync($crate::status!(action: $action, $($rest)*));
-//     }};
-//     (current: $current:expr, $($rest:tt)*) => {{
-//         $crate::__private_helper::global_emit_sync($crate::status!(current: $current, $($rest)*));
-//     }};
-//     (total: $total:expr, $($rest:tt)*) => {{
-//         $crate::__private_helper::global_emit_sync($crate::status!(total: $total, $($rest)*));
-//     }};
-//     (message: $message:expr, $($rest:tt)*) => {{
-//         $crate::__private_helper::global_emit_sync($crate::status!(message: $message, $($rest)*));
-//     }};
-//     (path: $path:expr, $($rest:tt)*) => {{
-//         $crate::__private_helper::global_emit_sync($crate::status!(path: $path, $($rest)*));
-//     }};
-
-//     // Global Sync (fallback for arbitrary format strings / single text)
-//     ($($arg:tt)+) => {{
-//         $crate::__private_helper::global_emit_sync($crate::status!($($arg)+));
-//     }};
-// }
