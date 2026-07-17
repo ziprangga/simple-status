@@ -30,6 +30,7 @@ pub use receiver::{Receiver, ReceiverHandler};
 pub use channel_emitter::{BroadcastEmitter, MpscEmitter};
 pub use channel_receiver::{BroadcastReceiver, MpscReceiver};
 
+use crate::status_event::NoId;
 use crate::status_event::StatusEvent;
 use futures::Stream;
 use std::future::Future;
@@ -78,17 +79,20 @@ impl std::str::FromStr for ChannelKind {
 /// Both components are stored inside `Arc` so they can be cheaply cloned and
 /// shared between threads.
 #[derive(Debug, Clone)]
-pub struct Channels {
-    emitter: Arc<Emitter>,
-    receiver: Arc<Receiver>,
+pub struct Channels<I = NoId> {
+    emitter: Arc<Emitter<I>>,
+    receiver: Arc<Receiver<I>>,
 }
 
-impl Channels {
+impl<I> Channels<I>
+where
+    I: Send + Sync + Clone + 'static,
+{
     /// Creates a new channel container.
     ///
     /// Doc:
     /// Both the emitter and receiver are optional.
-    pub fn new(emitter: impl Into<Emitter>, receiver: impl Into<Receiver>) -> Self {
+    pub fn new(emitter: impl Into<Emitter<I>>, receiver: impl Into<Receiver<I>>) -> Self {
         Self {
             emitter: Arc::new(emitter.into()),
             receiver: Arc::new(receiver.into()),
@@ -96,22 +100,22 @@ impl Channels {
     }
 
     /// Replaces the current emitter.
-    pub fn set_emitter(&mut self, emitter: impl Into<Emitter>) {
+    pub fn set_emitter(&mut self, emitter: impl Into<Emitter<I>>) {
         self.emitter = Arc::new(emitter.into());
     }
 
     /// Replaces the current receiver.
-    pub fn set_receiver(&mut self, receiver: impl Into<Receiver>) {
+    pub fn set_receiver(&mut self, receiver: impl Into<Receiver<I>>) {
         self.receiver = Arc::new(receiver.into());
     }
 
     /// Returns a shared emitter, if one exists.
-    pub fn get_emitter(&self) -> Arc<Emitter> {
+    pub fn get_emitter(&self) -> Arc<Emitter<I>> {
         self.emitter.clone()
     }
 
     /// Returns a shared receiver, if one exists.
-    pub fn get_receiver(&self) -> Arc<Receiver> {
+    pub fn get_receiver(&self) -> Arc<Receiver<I>> {
         self.receiver.clone()
     }
 
@@ -121,7 +125,7 @@ impl Channels {
     /// Performs an immediate, non-async emission.
     ///
     /// If no emitter exists, this method does nothing.
-    pub fn emit_sync(&self, se: StatusEvent) {
+    pub fn emit_sync(&self, se: StatusEvent<I>) {
         self.emitter.emit_sync(se);
     }
 
@@ -131,21 +135,21 @@ impl Channels {
     /// Awaits the underlying channel implementation.
     ///
     /// If no emitter exists, this method completes immediately.
-    pub async fn emit_async(&self, se: StatusEvent) {
+    pub async fn emit_async(&self, se: StatusEvent<I>) {
         self.emitter.emit_async(se).await;
     }
 
     /// Attempts to receive a status synchronously.
     ///
     /// Returns `None` if no receiver exists or no status is available.
-    pub fn recv_sync(&self) -> Option<StatusEvent> {
+    pub fn recv_sync(&self) -> Option<StatusEvent<I>> {
         self.receiver.sync_recv()
     }
 
     /// Receives the next status asynchronously.
     ///
     /// Returns `None` if no receiver exists.
-    pub async fn recv_async(&self) -> Option<StatusEvent> {
+    pub async fn recv_async(&self) -> Option<StatusEvent<I>> {
         self.receiver.async_recv().await
     }
 
@@ -160,7 +164,7 @@ impl Channels {
     /// Stream from existing receiver need StreamExt to map and use next(),
     /// `StreamExt` is re-exported by this crate for convenience.
     /// can be use from simple_status::StreamExt
-    pub fn stream(&self) -> Option<BoxStream<'static, StatusEvent>> {
+    pub fn stream(&self) -> Option<BoxStream<'static, StatusEvent<I>>> {
         self.receiver.stream()
     }
 
@@ -170,7 +174,7 @@ impl Channels {
     /// Only emitters that support multiple subscribers return a receiver.
     ///
     /// Returns `None` if the emitter does not support subscriptions.
-    pub fn subscribe(&self) -> Option<Arc<Receiver>> {
+    pub fn subscribe(&self) -> Option<Arc<Receiver<I>>> {
         self.emitter.subscribe()
     }
 }

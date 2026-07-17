@@ -39,28 +39,34 @@ use crate::status_event::StatusEvent;
 /// MPSC channels support a single receiver. Calling `subscribe()` always
 /// returns `None`.
 #[derive(Debug, Clone)]
-pub struct MpscEmitter {
-    sender: mpsc::Sender<StatusEvent>,
+pub struct MpscEmitter<I> {
+    sender: mpsc::Sender<StatusEvent<I>>,
 }
 
-impl MpscEmitter {
-    pub fn new(sender: mpsc::Sender<StatusEvent>) -> Self {
+impl<I> MpscEmitter<I>
+where
+    I: Send + Sync + Clone + 'static,
+{
+    pub fn new(sender: mpsc::Sender<StatusEvent<I>>) -> Self {
         Self { sender }
     }
 }
 
-impl EmitterHandler for MpscEmitter {
-    fn try_emit(&self, se: StatusEvent) {
+impl<I> EmitterHandler<I> for MpscEmitter<I>
+where
+    I: Send + Sync + Clone + 'static,
+{
+    fn try_emit(&self, se: StatusEvent<I>) {
         let _ = self.sender.try_send(se);
     }
 
-    fn emit(&self, se: StatusEvent) -> BoxFuture<'_, ()> {
+    fn emit(&self, se: StatusEvent<I>) -> BoxFuture<'_, ()> {
         Box::pin(async move {
             let _ = self.sender.send(se).await;
         })
     }
 
-    fn subscribe(&self) -> Option<Arc<Receiver>> {
+    fn subscribe(&self) -> Option<Arc<Receiver<I>>> {
         None
     }
 }
@@ -74,28 +80,34 @@ impl EmitterHandler for MpscEmitter {
 /// Supports multiple subscribers. Each call to `subscribe()` creates a new
 /// independent receiver.
 #[derive(Debug, Clone)]
-pub struct BroadcastEmitter {
-    sender: broadcast::Sender<StatusEvent>,
+pub struct BroadcastEmitter<I> {
+    sender: broadcast::Sender<StatusEvent<I>>,
 }
 
-impl BroadcastEmitter {
-    pub fn new(sender: broadcast::Sender<StatusEvent>) -> Self {
+impl<I> BroadcastEmitter<I>
+where
+    I: Send + Sync + Clone + 'static,
+{
+    pub fn new(sender: broadcast::Sender<StatusEvent<I>>) -> Self {
         Self { sender }
     }
 }
 
-impl EmitterHandler for BroadcastEmitter {
-    fn try_emit(&self, se: StatusEvent) {
+impl<I> EmitterHandler<I> for BroadcastEmitter<I>
+where
+    I: Send + Sync + Clone + 'static,
+{
+    fn try_emit(&self, se: StatusEvent<I>) {
         let _ = self.sender.send(se);
     }
 
-    fn emit(&self, se: StatusEvent) -> BoxFuture<'_, ()> {
+    fn emit(&self, se: StatusEvent<I>) -> BoxFuture<'_, ()> {
         Box::pin(async move {
             self.try_emit(se);
         })
     }
 
-    fn subscribe(&self) -> Option<Arc<Receiver>> {
+    fn subscribe(&self) -> Option<Arc<Receiver<I>>> {
         let rx = self.sender.subscribe();
         let receiver = BroadcastReceiver::new(rx);
         Some(Arc::new(Receiver::new(Arc::new(receiver))))

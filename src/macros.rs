@@ -128,6 +128,17 @@ macro_rules! __status {
 #[clippy::format_args]
 macro_rules! __status_emit {
     // ==================================
+    // ASYNC GLOBAL
+    // ==================================
+
+    (async, bus $bus:ident, $($status:tt)+) => {{
+        $crate::__private_helper::global_emit_async(
+            &$bus,
+            $crate::status!($($status)+)
+        ).await;
+    }};
+
+    // ==================================
     // ASYNC INDEPENDENT
     // ==================================
 
@@ -139,14 +150,16 @@ macro_rules! __status_emit {
     }};
 
     // ==================================
-    // ASYNC GLOBAL
+    // SYNC GLOBAL
     // ==================================
 
-    (async, $($status:tt)+) => {{
-        $crate::__private_helper::global_emit_async(
+    (bus $bus:ident, $($status:tt)+) => {{
+        $crate::__private_helper::global_emit_sync(
+            &$bus,
             $crate::status!($($status)+)
-        ).await;
+        );
     }};
+
 
     // ==================================
     // SYNC INDEPENDENT
@@ -159,15 +172,7 @@ macro_rules! __status_emit {
         );
     }};
 
-    // ==================================
-    // SYNC GLOBAL
-    // ==================================
 
-    ($($status:tt)+) => {{
-        $crate::__private_helper::global_emit_sync(
-            $crate::status!($($status)+)
-        );
-    }};
 }
 
 // ========================

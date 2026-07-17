@@ -6,6 +6,7 @@
 // These items are not part of the public API and may change without notice.
 #[doc(hidden)]
 mod __private {
+    use crate::ChannelsBus;
     use crate::Emitter;
     use crate::Event;
     use crate::NoId;
@@ -18,30 +19,42 @@ mod __private {
     use std::path::PathBuf;
     use std::sync::Arc;
 
-    pub trait IntoEmitter<'a> {
-        fn into_emitter(self) -> Option<&'a Emitter>;
+    pub trait IntoEmitter<'a, I> {
+        fn into_emitter(self) -> Option<&'a Emitter<I>>;
     }
 
-    impl<'a> IntoEmitter<'a> for Option<&'a Emitter> {
-        fn into_emitter(self) -> Option<&'a Emitter> {
+    impl<'a, I> IntoEmitter<'a, I> for Option<&'a Emitter<I>>
+    where
+        I: Send + Sync + Clone + 'static,
+    {
+        fn into_emitter(self) -> Option<&'a Emitter<I>> {
             self
         }
     }
 
-    impl<'a> IntoEmitter<'a> for &'a Emitter {
-        fn into_emitter(self) -> Option<&'a Emitter> {
+    impl<'a, I> IntoEmitter<'a, I> for &'a Emitter<I>
+    where
+        I: Send + Sync + Clone + 'static,
+    {
+        fn into_emitter(self) -> Option<&'a Emitter<I>> {
             Some(self)
         }
     }
 
-    impl<'a> IntoEmitter<'a> for Option<&'a Arc<Emitter>> {
-        fn into_emitter(self) -> Option<&'a Emitter> {
+    impl<'a, I> IntoEmitter<'a, I> for Option<&'a Arc<Emitter<I>>>
+    where
+        I: Send + Sync + Clone + 'static,
+    {
+        fn into_emitter(self) -> Option<&'a Emitter<I>> {
             self.map(Arc::as_ref)
         }
     }
 
-    impl<'a> IntoEmitter<'a> for &'a Arc<Emitter> {
-        fn into_emitter(self) -> Option<&'a Emitter> {
+    impl<'a, I> IntoEmitter<'a, I> for &'a Arc<Emitter<I>>
+    where
+        I: Send + Sync + Clone + 'static,
+    {
+        fn into_emitter(self) -> Option<&'a Emitter<I>> {
             Some(self.as_ref())
         }
     }
@@ -121,25 +134,37 @@ mod __private {
 
     // =====================================================
 
-    pub fn into_opt_emitter<'a>(emitter: impl IntoEmitter<'a>) -> Option<&'a Emitter> {
+    pub fn into_opt_emitter<'a, I>(emitter: impl IntoEmitter<'a, I>) -> Option<&'a Emitter<I>> {
         emitter.into_emitter()
     }
 
-    pub fn global_emit_sync(se: StatusEvent) {
-        emit_sync(se);
+    pub fn global_emit_sync<I>(bus: &'static ChannelsBus<I>, se: StatusEvent<I>)
+    where
+        I: Send + Sync + Clone + 'static,
+    {
+        emit_sync(bus, se);
     }
 
-    pub async fn global_emit_async(se: StatusEvent) {
-        emit_async(se).await;
+    pub async fn global_emit_async<I>(bus: &'static ChannelsBus<I>, se: StatusEvent<I>)
+    where
+        I: Send + Sync + Clone + 'static,
+    {
+        emit_async(bus, se).await;
     }
 
-    pub fn ind_status_emit_sync(emitter: Option<&Emitter>, se: StatusEvent) {
+    pub fn ind_status_emit_sync<I>(emitter: Option<&Emitter<I>>, se: StatusEvent<I>)
+    where
+        I: Send + Sync + Clone + 'static,
+    {
         if let Some(emit) = emitter {
             status_emit_sync(emit, se);
         }
     }
 
-    pub async fn ind_status_emit_async(emitter: Option<&Emitter>, se: StatusEvent) {
+    pub async fn ind_status_emit_async<I>(emitter: Option<&Emitter<I>>, se: StatusEvent<I>)
+    where
+        I: Send + Sync + Clone + 'static,
+    {
         if let Some(emit) = emitter {
             status_emit_async(emit, se).await;
         }

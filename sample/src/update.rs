@@ -1,3 +1,4 @@
+use crate::test_msg::TEST_BUS;
 use iced::Task;
 use iced::{Subscription, futures::StreamExt};
 use simple_status::{ChannelKind, create_channels};
@@ -161,7 +162,7 @@ pub fn update(state: &mut AppState, message: AppMessage) -> Task<AppMessage> {
 }
 
 pub fn subscription(_: &AppState) -> Subscription<AppMessage> {
-    Subscription::run(|| match simple_status::stream() {
+    Subscription::run(|| match simple_status::stream(&TEST_BUS) {
         Some(stream) => stream.map(AppMessage::ShowStatus).boxed(),
         None => iced::futures::stream::empty()
             .map(AppMessage::ShowStatus)

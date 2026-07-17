@@ -1,6 +1,8 @@
-use simple_status::Emitter;
+use simple_status::{ChannelsBus, Emitter};
 use simple_status::{StatusEvent, status, status_emit};
 use tokio::time::Duration;
+
+pub static TEST_BUS: ChannelsBus = ChannelsBus::new();
 
 pub fn direct_message() -> StatusEvent {
     status!("this is DIRECT")
@@ -20,11 +22,11 @@ pub async fn emit_async_message(emitter: &Emitter) {
 }
 
 pub fn global_emit_sync_message() {
-    status_emit!("this is EMIT SYNC GLOBAL");
+    status_emit!(bus TEST_BUS, "this is EMIT SYNC GLOBAL");
 }
 
 pub async fn global_emit_async_message() {
-    status_emit!(async, "this is EMIT ASYNC GLOBAL");
+    status_emit!(async, bus TEST_BUS, "this is EMIT ASYNC GLOBAL");
 }
 
 /// Note:
@@ -81,6 +83,7 @@ pub fn global_emit_sync_with_progress() {
 
     for current in 0..=total {
         status_emit!(
+            bus TEST_BUS,
             action: "GLOBAL EMIT SYNC",
             current: current,
             total: total,
@@ -95,6 +98,7 @@ pub async fn global_emit_async_with_progress() {
     for current in 0..=total {
         status_emit!(
             async,
+            bus TEST_BUS,
             action: "GLOBAL EMIT ASYNC",
             current: current,
             total: total,

@@ -74,23 +74,53 @@ pub mod __private_helper;
 
 use std::sync::{Arc, OnceLock};
 
-static CHANNELS_BUS: OnceLock<Channels> = OnceLock::new();
+// static CHANNELS_BUS: OnceLock<Channels> = OnceLock::new();
+pub struct ChannelsBus<I = NoId> {
+    channels: OnceLock<Channels<I>>,
+}
 
-/// Initializes the global channel.
-///
-/// Doc:
-/// Creates the global channel used by the crate-level functions and macros,
-/// such as `status_emit!()`.
-///
-/// This function should be called once during application initialization.
-///
-/// Note:
-/// Subsequent calls have no effect because the global channel is stored in a
-/// `OnceLock`.
-pub fn init_channels(buffer: usize, kind: ChannelKind) {
-    let (emitter, receiver) = build_channels(buffer, kind);
-    let channel_handler = Channels::new(emitter, receiver);
-    let _ = CHANNELS_BUS.set(channel_handler);
+impl<I> ChannelsBus<I>
+where
+    I: Send + Sync + Clone + 'static,
+{
+    pub const fn new() -> Self {
+        Self {
+            channels: OnceLock::new(),
+        }
+    }
+
+    pub fn channels(&self) -> &Channels<I> {
+        self.channels
+            .get()
+            .expect("simple_status::init_channels_bus() has not been called")
+    }
+}
+
+// /// Initializes the global channel.
+// ///
+// /// Doc:
+// /// Creates the global channel used by the crate-level functions and macros,
+// /// such as `status_emit!()`.
+// ///
+// /// This function should be called once during application initialization.
+// ///
+// /// Note:
+// /// Subsequent calls have no effect because the global channel is stored in a
+// /// `OnceLock`.
+// pub fn init_channels(buffer: usize, kind: ChannelKind) {
+//     let (emitter, receiver) = build_channels(buffer, kind);
+//     let channel_handler = Channels::new(emitter, receiver);
+//     let _ = CHANNELS_BUS.set(channel_handler);
+// }
+pub fn init_channels<I>(bus: &ChannelsBus<I>, buffer: usize, kind: ChannelKind)
+where
+    I: Send + Sync + Clone + 'static,
+{
+    let (emitter, receiver) = build_channels::<I>(buffer, kind);
+
+    let channels = Channels::<I>::new(emitter, receiver);
+
+    let _ = bus.channels.set(channels);
 }
 
 /// Creates an independent channel pair.
@@ -103,51 +133,96 @@ pub fn init_channels(buffer: usize, kind: ChannelKind) {
 /// Note:
 /// Use this when an application requires isolated communication channels or
 /// multiple independent status streams.
-pub fn create_channels(buffer: usize, kind: ChannelKind) -> Channels {
+pub fn create_channels<I>(buffer: usize, kind: ChannelKind) -> Channels<I>
+where
+    I: Send + Sync + Clone + 'static,
+{
     let (emitter, receiver) = build_channels(buffer, kind);
     let channel_handler = Channels::new(emitter, receiver);
     channel_handler
 }
 
-// =====================================
-// Global API
-// =====================================
-//
-// Doc:
-// These functions operate on the channel initialized by
-// `init_channels()`.
-//
-// Note:
-// Calling any of these functions before `init_channels()` will panic because
-// no global channel exists.
-fn channels_bus() -> &'static Channels {
-    CHANNELS_BUS
-        .get()
-        .expect("simple_status::init_channels() has not been called")
+// // =====================================
+// // Global API
+// // =====================================
+// //
+// // Doc:
+// // These functions operate on the channel initialized by
+// // `init_channels()`.
+// //
+// // Note:
+// // Calling any of these functions before `init_channels()` will panic because
+// // no global channel exists.
+// fn channels_bus() -> &'static Channels {
+//     CHANNELS_BUS
+//         .get()
+//         .expect("simple_status::init_channels() has not been called")
+// }
+
+// pub fn stream() -> Option<BoxStream<'static, StatusEvent>> {
+//     channels_bus().stream()
+// }
+
+// pub fn emit_sync(se: StatusEvent) {
+//     channels_bus().emit_sync(se);
+// }
+
+// pub async fn emit_async(se: StatusEvent) {
+//     channels_bus().emit_async(se).await;
+// }
+
+// pub fn recv_sync() -> Option<StatusEvent> {
+//     channels_bus().recv_sync()
+// }
+
+// pub async fn recv_async() -> Option<StatusEvent> {
+//     channels_bus().recv_async().await
+// }
+
+// pub fn subscribe() -> Option<Arc<Receiver>> {
+//     channels_bus().subscribe()
+// }
+
+pub fn stream<I>(bus: &ChannelsBus<I>) -> Option<BoxStream<'static, StatusEvent<I>>>
+where
+    I: Send + Sync + Clone + 'static,
+{
+    bus.channels().stream()
 }
 
-pub fn stream() -> Option<BoxStream<'static, StatusEvent>> {
-    channels_bus().stream()
+pub fn emit_sync<I>(bus: &ChannelsBus<I>, se: StatusEvent<I>)
+where
+    I: Send + Sync + Clone + 'static,
+{
+    bus.channels().emit_sync(se);
 }
 
-pub fn emit_sync(se: StatusEvent) {
-    channels_bus().emit_sync(se);
+pub async fn emit_async<I>(bus: &ChannelsBus<I>, se: StatusEvent<I>)
+where
+    I: Send + Sync + Clone + 'static,
+{
+    bus.channels().emit_async(se).await;
 }
 
-pub async fn emit_async(se: StatusEvent) {
-    channels_bus().emit_async(se).await;
+pub fn recv_sync<I>(bus: &ChannelsBus<I>) -> Option<StatusEvent<I>>
+where
+    I: Send + Sync + Clone + 'static,
+{
+    bus.channels().recv_sync()
 }
 
-pub fn recv_sync() -> Option<StatusEvent> {
-    channels_bus().recv_sync()
+pub async fn recv_async<I>(bus: &ChannelsBus<I>) -> Option<StatusEvent<I>>
+where
+    I: Send + Sync + Clone + 'static,
+{
+    bus.channels().recv_async().await
 }
 
-pub async fn recv_async() -> Option<StatusEvent> {
-    channels_bus().recv_async().await
-}
-
-pub fn subscribe() -> Option<Arc<Receiver>> {
-    channels_bus().subscribe()
+pub fn subscribe<I>(bus: &ChannelsBus<I>) -> Option<Arc<Receiver<I>>>
+where
+    I: Send + Sync + Clone + 'static,
+{
+    bus.channels().subscribe()
 }
 
 // ==========================
@@ -160,11 +235,17 @@ pub fn subscribe() -> Option<Arc<Receiver>> {
 // Note:
 // These functions allow the macros to emit through either an explicit emitter
 // or no emitter (`None`) without duplicating logic.
-pub fn status_emit_sync(emitter: &Emitter, se: StatusEvent) {
+pub fn status_emit_sync<I>(emitter: &Emitter<I>, se: StatusEvent<I>)
+where
+    I: Send + Sync + Clone + 'static,
+{
     emitter.emit_sync(se);
 }
 
-pub async fn status_emit_async(emitter: &Emitter, se: StatusEvent) {
+pub async fn status_emit_async<I>(emitter: &Emitter<I>, se: StatusEvent<I>)
+where
+    I: Send + Sync + Clone + 'static,
+{
     emitter.emit_async(se).await;
 }
 
@@ -179,13 +260,16 @@ pub async fn status_emit_async(emitter: &Emitter, se: StatusEvent) {
 ///
 /// Keeping construction centralized ensures both `init_channels()` and
 /// `create_channels()` always produce identical channel configurations.
-fn build_channels(buffer: usize, kind: ChannelKind) -> (Emitter, Receiver) {
+fn build_channels<I>(buffer: usize, kind: ChannelKind) -> (Emitter<I>, Receiver<I>)
+where
+    I: Send + Sync + Clone + 'static,
+{
     match kind {
         ChannelKind::Mpsc => {
             let (tx, rx) = tokio::sync::mpsc::channel(buffer);
 
-            let emitter: Emitter = MpscEmitter::new(tx).into();
-            let receiver: Receiver = MpscReceiver::new(rx).into();
+            let emitter = Emitter::<I>::from_handler(MpscEmitter::<I>::new(tx));
+            let receiver = Receiver::<I>::from_handler(MpscReceiver::<I>::new(rx));
 
             (emitter, receiver)
         }
@@ -195,8 +279,8 @@ fn build_channels(buffer: usize, kind: ChannelKind) -> (Emitter, Receiver) {
 
             let persistent_rx = tx.subscribe();
 
-            let emitter: Emitter = BroadcastEmitter::new(tx).into();
-            let receiver: Receiver = BroadcastReceiver::new(persistent_rx).into();
+            let emitter = Emitter::<I>::from_handler(BroadcastEmitter::<I>::new(tx));
+            let receiver = Receiver::<I>::from_handler(BroadcastReceiver::<I>::new(persistent_rx));
             (emitter, receiver)
         }
     }
