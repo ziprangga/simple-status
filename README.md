@@ -4,11 +4,14 @@ A **lightweight Rust crate** for emitting and tracking status events in asynchro
 
 ## Features
 
+* Independent Channels: Create isolated status streams with `create_channels()` without relying on global state.
+* Global Status System: Initialize once with `init_channels()` and emit status events from anywhere using `status_emit!`.
 * Asynchronous and synchronous status event handling using `Emitter` and `Receiver`.
-* Flexible Progress Tracking: Built-in support for `stage`, `current`, `total`, `message`, and `PathBuf`.
+* Flexible Progress Tracking: Built-in support for `action`, `current`, `total`, `message`, and `PathBuf`.
 * Simple macros for building and emitting status events: `status!` and `status_emit!`.
 * Zero-Branching Strategy: Specialized `Mpsc` and `Broadcast` implementations for maximum performance.
 * Thread-safe, `Arc`-wrapped channels for safe multi-threaded usage.
+* Broadcast Subscribers: Create additional receivers from broadcast channels using `subscribe()`.
 * Dual-Stream Support: `stream_sync()` for local borrows and `stream_async()` for 'static lifetimes (required by Iced Tasks).
 * Works with `iced` or any async runtime (e.g., Tokio).
 
@@ -29,13 +32,38 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-simple-status = "0.1.2"
+simple-status = "0.1.10"
 iced = { version = "0.14", features = ["tokio"] }  # optional if using iced
 ```
 
 ## Usage
 
-### Initialize the global status emitter (example using iced gui)
+### Using independent channels
+
+```rust
+use simple_status::{create_channels, ChannelKind};
+
+let channels = create_channels(10, ChannelKind::Broadcast);
+You can emit and receive status events directly through the returned Channels instance.
+use simple_status::{create_channels, ChannelKind, status};
+
+let channels = create_channels(10, ChannelKind::Broadcast);
+
+channels.emit_sync(
+    status!(
+        action: "Build",
+        current: 1,
+        total: 5,
+        message: "Compiling project",
+    )
+);
+
+if let Some(status) = channels.recv_sync() {
+    println!("{}", status);
+}
+```
+
+### Using global Channels (example using iced gui)
 
 ```rust
 use simple_status::{init_channels, ChannelKind};
@@ -74,21 +102,16 @@ use simple_status::{status, status_emit};
 let emitter = channels.get_emitter();
 
 // Using the builder-style macro
-let event = status!(
-    stage: "Downloading",
-    current: 3,
-    total: 10,
-    message: "Downloading file 3 of 10",
-);
+let event = status!( action: "Downloading", current: 3, total: 10, message: "Downloading file 3 of 10", );
 
 // Return Status directly
 status!("message")
 
 // Emit asynchronously (await required)
-status_emit!(async, emitter.as_ref(), stage: "Downloading", current: 3, total: 10, message: "Downloading file 3 of 10");
+status_emit!( async, &emitter, action: "Downloading", current: 3, total: 10, message: "Downloading file 3 of 10" );
 
 // Emit synchronously
-status_emit!(emitter.as_ref(), "All tasks completed!");
+status_emit!(&emitter, "All tasks completed!");
 ```
 
 ### Build custom status
@@ -97,11 +120,7 @@ status_emit!(emitter.as_ref(), "All tasks completed!");
 use simple_status::status;
 use std::path::PathBuf;
 
-let s = status!(
-    stage: "Processing",
-    message: "Analyzing data...",
-    path: PathBuf::from("/logs/app.log"),
-);
+let s = status!( action: "Processing", message: "Analyzing data...", path: PathBuf::from("/logs/app.log"), );
 ```
 
 ### Channels API
