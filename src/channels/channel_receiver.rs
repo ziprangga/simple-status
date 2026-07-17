@@ -29,7 +29,7 @@ use crate::channels::BoxStream;
 use crate::channels::ReceiverHandler;
 use crate::status_event::StatusEvent;
 
-/// Receives `Status` values from a Tokio MPSC channel.
+/// Receives `Status Event` values from a Tokio MPSC channel.
 ///
 /// Doc:
 /// Wraps `tokio::sync::mpsc::Receiver` as a `ReceiverHandler`.
@@ -57,18 +57,18 @@ impl ReceiverHandler for MpscReceiver {
 
     fn stream(&self) -> BoxStream<'_, StatusEvent> {
         Box::pin(stream::unfold(self, |this| async move {
-            this.recv().await.map(|status| (status, this))
+            this.recv().await.map(|se| (se, this))
         }))
     }
 }
 
-/// Receives `Status` values from a Tokio broadcast channel.
+/// Receives `Status event` values from a Tokio broadcast channel.
 ///
 /// Doc:
 /// Wraps `tokio::sync::broadcast::Receiver` as a `ReceiverHandler`.
 ///
 /// Note:
-/// Lagged messages are skipped automatically until the next available status is
+/// Lagged messages are skipped automatically until the next available status event is
 /// received.
 #[derive(Debug)]
 pub struct BroadcastReceiver {
@@ -88,7 +88,7 @@ impl ReceiverHandler for BroadcastReceiver {
         let mut guard = self.inner.try_lock().ok()?;
         loop {
             match guard.try_recv() {
-                Ok(status) => return Some(status),
+                Ok(se) => return Some(se),
                 Err(broadcast::error::TryRecvError::Lagged(_)) => continue,
                 _ => return None,
             }
@@ -100,7 +100,7 @@ impl ReceiverHandler for BroadcastReceiver {
             let mut guard = self.inner.lock().await;
             loop {
                 match guard.recv().await {
-                    Ok(status) => return Some(status),
+                    Ok(se) => return Some(se),
                     Err(broadcast::error::RecvError::Lagged(_)) => continue,
                     _ => return None,
                 }
@@ -110,7 +110,7 @@ impl ReceiverHandler for BroadcastReceiver {
 
     fn stream(&self) -> BoxStream<'_, StatusEvent> {
         Box::pin(stream::unfold(self, |this| async move {
-            this.recv().await.map(|status| (status, this))
+            this.recv().await.map(|se| (se, this))
         }))
     }
 }

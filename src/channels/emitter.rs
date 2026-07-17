@@ -17,14 +17,14 @@ pub trait EmitterHandler: Send + Sync {
     ///
     /// Note:
     /// This method should complete the emission before returning.
-    fn try_emit(&self, status: StatusEvent);
+    fn try_emit(&self, se: StatusEvent);
 
     /// Emits a status asynchronously.
     ///
     /// Note:
     /// The returned future is driven by the caller and does not begin
     /// execution until it is polled.
-    fn emit(&self, status: StatusEvent) -> BoxFuture<'_, ()>;
+    fn emit(&self, se: StatusEvent) -> BoxFuture<'_, ()>;
 
     /// Creates a new receiver from this emitter, if supported.
     ///

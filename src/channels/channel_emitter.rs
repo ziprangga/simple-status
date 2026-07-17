@@ -30,7 +30,7 @@ use crate::channels::EmitterHandler;
 use crate::channels::Receiver;
 use crate::status_event::StatusEvent;
 
-/// Emits `Status` values through a Tokio MPSC channel.
+/// Emits `Status Event` values through a Tokio MPSC channel.
 ///
 /// Doc:
 /// Wraps `tokio::sync::mpsc::Sender` as an `EmitterHandler`.
@@ -50,13 +50,13 @@ impl MpscEmitter {
 }
 
 impl EmitterHandler for MpscEmitter {
-    fn try_emit(&self, status: StatusEvent) {
-        let _ = self.sender.try_send(status);
+    fn try_emit(&self, se: StatusEvent) {
+        let _ = self.sender.try_send(se);
     }
 
-    fn emit(&self, status: StatusEvent) -> BoxFuture<'_, ()> {
+    fn emit(&self, se: StatusEvent) -> BoxFuture<'_, ()> {
         Box::pin(async move {
-            let _ = self.sender.send(status).await;
+            let _ = self.sender.send(se).await;
         })
     }
 
@@ -65,7 +65,7 @@ impl EmitterHandler for MpscEmitter {
     }
 }
 
-/// Emits `Status` values through a Tokio broadcast channel.
+/// Emits `Status Event` values through a Tokio broadcast channel.
 ///
 /// Doc:
 /// Wraps `tokio::sync::broadcast::Sender` as an `EmitterHandler`.
@@ -85,13 +85,13 @@ impl BroadcastEmitter {
 }
 
 impl EmitterHandler for BroadcastEmitter {
-    fn try_emit(&self, status: StatusEvent) {
-        let _ = self.sender.send(status);
+    fn try_emit(&self, se: StatusEvent) {
+        let _ = self.sender.send(se);
     }
 
-    fn emit(&self, status: StatusEvent) -> BoxFuture<'_, ()> {
+    fn emit(&self, se: StatusEvent) -> BoxFuture<'_, ()> {
         Box::pin(async move {
-            self.try_emit(status);
+            self.try_emit(se);
         })
     }
 

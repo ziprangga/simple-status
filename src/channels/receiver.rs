@@ -76,8 +76,8 @@ impl Receiver {
     pub fn stream(&self) -> Option<BoxStream<'static, StatusEvent>> {
         let this = self.clone();
         let s = stream::unfold(this, |res| async move {
-            let status = res.async_recv().await?;
-            Some((status, res))
+            let se = res.async_recv().await?;
+            Some((se, res))
         });
 
         Some(Box::pin(s) as BoxStream<'static, StatusEvent>)
