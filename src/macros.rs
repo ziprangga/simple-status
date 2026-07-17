@@ -133,7 +133,7 @@ macro_rules! __status_emit {
 
     (async, $emitter:expr, $($status:tt)+) => {{
         $crate::__private_helper::ind_status_emit_async(
-            $emitter,
+            $crate::__private_helper::into_opt_emitter($emitter),
             $crate::status!($($status)+)
         ).await;
     }};
@@ -154,7 +154,7 @@ macro_rules! __status_emit {
 
     ($emitter:expr, $($status:tt)+) => {{
         $crate::__private_helper::ind_status_emit_sync(
-            $emitter,
+            $crate::__private_helper::into_opt_emitter($emitter),
             $crate::status!($($status)+)
         );
     }};

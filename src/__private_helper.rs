@@ -16,6 +16,35 @@ mod __private {
     use crate::status_emit_sync;
     use std::borrow::Cow;
     use std::path::PathBuf;
+    use std::sync::Arc;
+
+    pub trait IntoEmitter<'a> {
+        fn into_emitter(self) -> Option<&'a Emitter>;
+    }
+
+    impl<'a> IntoEmitter<'a> for Option<&'a Emitter> {
+        fn into_emitter(self) -> Option<&'a Emitter> {
+            self
+        }
+    }
+
+    impl<'a> IntoEmitter<'a> for &'a Emitter {
+        fn into_emitter(self) -> Option<&'a Emitter> {
+            Some(self)
+        }
+    }
+
+    impl<'a> IntoEmitter<'a> for Option<&'a Arc<Emitter>> {
+        fn into_emitter(self) -> Option<&'a Emitter> {
+            self.map(Arc::as_ref)
+        }
+    }
+
+    impl<'a> IntoEmitter<'a> for &'a Arc<Emitter> {
+        fn into_emitter(self) -> Option<&'a Emitter> {
+            Some(self.as_ref())
+        }
+    }
 
     pub trait IntoCowOpt {
         fn into_cow_opt(self) -> Option<Cow<'static, str>>;
@@ -92,6 +121,10 @@ mod __private {
 
     // =====================================================
 
+    pub fn into_opt_emitter<'a>(emitter: impl IntoEmitter<'a>) -> Option<&'a Emitter> {
+        emitter.into_emitter()
+    }
+
     pub fn global_emit_sync(se: StatusEvent) {
         emit_sync(se);
     }
@@ -100,12 +133,16 @@ mod __private {
         emit_async(se).await;
     }
 
-    pub fn ind_status_emit_sync(emitter: &Emitter, se: StatusEvent) {
-        status_emit_sync(emitter, se);
+    pub fn ind_status_emit_sync(emitter: Option<&Emitter>, se: StatusEvent) {
+        if let Some(emit) = emitter {
+            status_emit_sync(emit, se);
+        }
     }
 
-    pub async fn ind_status_emit_async(emitter: &Emitter, se: StatusEvent) {
-        status_emit_async(emitter, se).await;
+    pub async fn ind_status_emit_async(emitter: Option<&Emitter>, se: StatusEvent) {
+        if let Some(emit) = emitter {
+            status_emit_async(emit, se).await;
+        }
     }
 
     /// Constructs a `StatusEvent` object from optional fields passed by macros without id.
@@ -149,3 +186,6 @@ pub use self::__private::ind_status_emit_async;
 
 #[doc(hidden)]
 pub use self::__private::ind_status_emit_sync;
+
+#[doc(hidden)]
+pub use self::__private::into_opt_emitter;
