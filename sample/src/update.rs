@@ -162,7 +162,7 @@ pub fn update(state: &mut AppState, message: AppMessage) -> Task<AppMessage> {
 }
 
 pub fn subscription(_: &AppState) -> Subscription<AppMessage> {
-    Subscription::run(|| match simple_status::stream(&TEST_BUS) {
+    Subscription::run(|| match TEST_BUS.stream() {
         Some(stream) => stream.map(AppMessage::ShowStatus).boxed(),
         None => iced::futures::stream::empty()
             .map(AppMessage::ShowStatus)

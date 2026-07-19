@@ -34,6 +34,7 @@ use futures::Stream;
 use std::future::Future;
 use std::pin::Pin;
 use std::sync::Arc;
+use std::sync::OnceLock;
 
 use crate::status_event::StatusEvent;
 
@@ -53,6 +54,45 @@ pub type BoxStream<'a, T> = Pin<Box<dyn Stream<Item = T> + Send + 'a>>;
 pub enum ChannelKind {
     Mpsc,
     Broadcast,
+}
+
+impl ChannelKind {
+    /// Constructs a built-in channel implementation.
+    ///
+    /// Creates the emitter and receiver pair corresponding to the selected
+    /// [`ChannelKind`].
+    ///
+    /// # Note
+    ///
+    /// This function centralizes channel construction to ensure that
+    /// all crate APIs create equivalent channel configurations.
+    pub fn build_channels<T>(&self, buffer: usize) -> Channels<T>
+    where
+        T: Send + Sync + Clone + 'static,
+    {
+        match self {
+            Self::Mpsc => {
+                let (tx, rx) = tokio::sync::mpsc::channel(buffer);
+
+                let emitter = Emitter::<T>::from_handler(MpscEmitter::<T>::new(tx));
+                let receiver = Receiver::<T>::from_handler(MpscReceiver::<T>::new(rx));
+
+                Channels::<T>::new(emitter, receiver)
+            }
+
+            Self::Broadcast => {
+                let (tx, _rx) = tokio::sync::broadcast::channel(buffer);
+
+                let persistent_rx = tx.subscribe();
+
+                let emitter = Emitter::<T>::from_handler(BroadcastEmitter::<T>::new(tx));
+                let receiver =
+                    Receiver::<T>::from_handler(BroadcastReceiver::<T>::new(persistent_rx));
+
+                Channels::<T>::new(emitter, receiver)
+            }
+        }
+    }
 }
 
 impl std::str::FromStr for ChannelKind {
@@ -170,5 +210,206 @@ where
     /// Returns `None` if the emitter does not support subscriptions.
     pub fn subscribe(&self) -> Option<Arc<Receiver<T>>> {
         self.emitter.subscribe()
+    }
+}
+
+/// Stores a lazily initialized channel set.
+///
+/// `ChannelsBus<T>` is intended to be declared as a global static and
+/// initialized during application startup with [`init_channels_bus()`]
+/// or [`ChannelsBus::set_channels()`].
+///
+/// The bus defaults to [`StatusEvent`] but can store channels for any
+/// value type satisfying the channel trait bounds.
+///
+/// It is commonly declared as a global static and initialized during
+/// application startup.
+///
+/// # Example
+///
+/// ```rust
+/// use simple_status::{
+///     ChannelKind,
+///     ChannelsBus,
+///     init_channels_bus,
+/// };
+///
+/// static STATUS_BUS: ChannelsBus = ChannelsBus::new();
+///
+/// fn main() {
+///     init_channels_bus(&STATUS_BUS, 32, ChannelKind::Broadcast);
+/// }
+/// ```
+///
+/// # Note
+///
+/// Internally uses [`OnceLock`] to ensure channels are initialized at most
+/// once and can be safely shared across threads.
+pub struct ChannelsBus<T = StatusEvent> {
+    channels: OnceLock<Channels<T>>,
+}
+
+impl<T> ChannelsBus<T>
+where
+    T: Send + Sync + Clone + 'static,
+{
+    /// Creates an uninitialized channel bus.
+    ///
+    /// The bus contains no channels until [`set_channels`] is called.
+    ///
+    /// ```rust
+    /// use simple_status::ChannelsBus;
+    ///
+    /// static STATUS_BUS: ChannelsBus = ChannelsBus::new();
+    /// ```
+    ///
+    /// The bus must later be initialized with [`init_channels_bus()`]
+    /// or [`ChannelsBus::set_channels()`] before use.
+    pub const fn new() -> Self {
+        Self {
+            channels: OnceLock::new(),
+        }
+    }
+
+    /// Creates a built-in [`Channels<T>`] instance using the selected
+    /// [`ChannelKind`] and stores it in the bus.
+    ///
+    /// The resulting channels become available through the bus APIs.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use simple_status::{
+    ///     ChannelKind,
+    ///     ChannelsBus,
+    ///     init_channels_bus,
+    /// };
+    ///
+    /// static STATUS_BUS: ChannelsBus = ChannelsBus::new();
+    ///
+    /// fn main() {
+    ///     init_channels_bus(&STATUS_BUS, 32, ChannelKind::Broadcast);
+    /// }
+    /// ```
+    ///
+    /// Equivalent:
+    ///
+    /// ```rust
+    /// use simple_status::{
+    ///     ChannelKind,
+    ///     ChannelsBus,
+    /// };
+    ///
+    /// static STATUS_BUS: ChannelsBus = ChannelsBus::new();
+    ///
+    /// fn main() {
+    ///     STATUS_BUS.set_channels(32, ChannelKind::Broadcast);
+    /// }
+    /// ```
+    ///
+    /// # Note
+    ///
+    /// Initialization is backed by [`OnceLock`]. Only the first call
+    /// stores channels in the bus. Subsequent calls have no effect.
+    pub fn set_channels(&self, buffer: usize, kind: ChannelKind) {
+        let channels = kind.build_channels(buffer);
+        let _ = self.channels.set(channels);
+    }
+
+    /// Returns a reference to the stored [`Channels<T>`].
+    ///
+    /// # Panics
+    ///
+    /// Panics if the bus has not been initialized with
+    /// [`init_channels_bus()`] or [`ChannelsBus::set_channels()`].
+    pub fn channels(&self) -> &Channels<T> {
+        self.channels
+            .get()
+            .expect("ChannelsBus has not been initialized")
+    }
+
+    // ==========================
+    // ChannelsBus API
+    // ==========================
+    //
+    // These functions operate on the stored [`Channels<T>`].
+    //
+    // A bus is commonly declared as a global static and initialized once
+    // through [`init_channels_bus()`] or [`ChannelsBus::set_channels()`].
+    //
+    // # Panics
+    //
+    // Panics if the provided bus has not been initialized with
+    // [`init_channels_bus()`].
+    //
+
+    /// Creates a stream of values from the stored channels.
+    ///
+    /// Each item is produced by repeatedly receiving values from the
+    /// underlying receiver.
+    ///
+    /// Returns `None` if streaming is not supported by the configured
+    /// channel implementation.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `bus` has not been initialized.
+    pub fn stream(&self) -> Option<BoxStream<'static, T>> {
+        self.channels().stream()
+    }
+
+    /// Emits a value synchronously through the stored channels.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `bus` has not been initialized.
+    pub fn emit_sync(&self, value: T) {
+        self.channels().emit_sync(value);
+    }
+
+    /// Emits a value asynchronously through the stored channels.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `bus` has not been initialized.
+    pub async fn emit_async(&self, value: T) {
+        self.channels().emit_async(value).await;
+    }
+
+    /// Attempts to receive a value synchronously from the stored channels.
+    ///
+    /// Returns `None` if no value is available.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `bus` has not been initialized.
+    pub fn recv_sync(&self) -> Option<T> {
+        self.channels().recv_sync()
+    }
+
+    /// Receives the next value asynchronously from the stored channels.
+    ///
+    /// Returns `None` if no value is available.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `bus` has not been initialized.
+    pub async fn recv_async(&self) -> Option<T> {
+        self.channels().recv_async().await
+    }
+
+    /// Creates an additional receiver subscribed to the stored channels.
+    ///
+    /// For channel implementations that support multiple receivers,
+    /// the returned receiver can be used independently of the primary
+    /// receiver.
+    ///
+    /// Returns `None` if subscriptions are not supported.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `bus` has not been initialized.
+    pub fn subscribe(&self) -> Option<Arc<Receiver<T>>> {
+        self.channels().subscribe()
     }
 }

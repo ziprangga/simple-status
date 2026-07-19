@@ -21,10 +21,6 @@ mod __private {
     use crate::IntoId;
     use crate::StatusEmitter;
     use crate::StatusEvent;
-    use crate::emit_async;
-    use crate::emit_sync;
-    use crate::status_emit_async;
-    use crate::status_emit_sync;
     use std::borrow::Cow;
     use std::path::PathBuf;
     use std::sync::Arc;
@@ -95,6 +91,24 @@ mod __private {
         fn into_cow_opt(self) -> Option<Cow<'static, str>> {
             self.and_then(|x| x.into_cow_opt())
         }
+    }
+
+    // These functions centralize event emission logic so the macros can
+    // operate on any compatible emitter implementation.
+    fn bus_emit_sync(bus: &ChannelsBus, se: StatusEvent) {
+        bus.channels().emit_sync(se);
+    }
+
+    async fn bus_emit_async(bus: &ChannelsBus, se: StatusEvent) {
+        bus.channels().emit_async(se).await;
+    }
+
+    fn emitter_emit_sync(emitter: &StatusEmitter, se: StatusEvent) {
+        emitter.emit_sync(se);
+    }
+
+    async fn emitter_emit_async(emitter: &StatusEmitter, se: StatusEvent) {
+        emitter.emit_async(se).await;
     }
 
     /// Constructs an `Event` from normalized optional fields.
@@ -178,11 +192,11 @@ mod __private {
     /// Note:
     /// Internal helper used by macro expansion.
     pub fn global_emit_sync(bus: &'static ChannelsBus, se: StatusEvent) {
-        emit_sync(bus, se);
+        bus_emit_sync(bus, se);
     }
 
     pub async fn global_emit_async(bus: &'static ChannelsBus, se: StatusEvent) {
-        emit_async(bus, se).await;
+        bus_emit_async(bus, se).await;
     }
 
     /// Emits a status event through a provided emitter when available.
@@ -192,13 +206,13 @@ mod __private {
     /// A missing emitter results in a no-op.
     pub fn ind_status_emit_sync(emitter: Option<&StatusEmitter>, se: StatusEvent) {
         if let Some(emit) = emitter {
-            status_emit_sync(emit, se);
+            emitter_emit_sync(emit, se);
         }
     }
 
     pub async fn ind_status_emit_async(emitter: Option<&StatusEmitter>, se: StatusEvent) {
         if let Some(emit) = emitter {
-            status_emit_async(emit, se).await;
+            emitter_emit_async(emit, se).await;
         }
     }
 

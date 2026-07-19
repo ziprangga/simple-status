@@ -1,5 +1,5 @@
 use crate::test_msg::TEST_BUS;
-use simple_status::{ChannelKind, StatusEvent, init_channels};
+use simple_status::{ChannelKind, StatusEvent, init_channels_bus};
 
 #[derive(Debug, Clone, Copy, Default)]
 pub enum StatusSource {
@@ -48,7 +48,7 @@ pub struct AppState {
 
 impl AppState {
     pub fn new(buffer: usize, kind: ChannelKind) -> Self {
-        let _ = init_channels(&TEST_BUS, buffer, kind);
+        let _ = init_channels_bus(&TEST_BUS, buffer, kind);
 
         Self {
             show_status: StatusEvent::default(),
