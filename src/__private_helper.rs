@@ -11,6 +11,10 @@
 //! - Intended exclusively for macro expansion.
 //! - Public code should use the crate's macros and APIs instead.
 //! - Function signatures may change without notice.
+//!
+//! These helpers are tightly coupled to `StatusEvent`
+//! and are not intended to support arbitrary channel
+//! value types.
 //!...
 
 #[doc(hidden)]
