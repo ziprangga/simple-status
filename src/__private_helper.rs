@@ -7,9 +7,10 @@
 #[doc(hidden)]
 mod __private {
     use crate::ChannelsBus;
-    use crate::Emitter;
     use crate::Event;
-    use crate::NoId;
+    use crate::Id;
+    use crate::IntoId;
+    use crate::StatusEmitter;
     use crate::StatusEvent;
     use crate::emit_async;
     use crate::emit_sync;
@@ -19,42 +20,30 @@ mod __private {
     use std::path::PathBuf;
     use std::sync::Arc;
 
-    pub trait IntoEmitter<'a, I> {
-        fn into_emitter(self) -> Option<&'a Emitter<I>>;
+    pub trait IntoEmitter<'a> {
+        fn into_emitter(self) -> Option<&'a StatusEmitter>;
     }
 
-    impl<'a, I> IntoEmitter<'a, I> for Option<&'a Emitter<I>>
-    where
-        I: Send + Sync + Clone + 'static,
-    {
-        fn into_emitter(self) -> Option<&'a Emitter<I>> {
+    impl<'a> IntoEmitter<'a> for Option<&'a StatusEmitter> {
+        fn into_emitter(self) -> Option<&'a StatusEmitter> {
             self
         }
     }
 
-    impl<'a, I> IntoEmitter<'a, I> for &'a Emitter<I>
-    where
-        I: Send + Sync + Clone + 'static,
-    {
-        fn into_emitter(self) -> Option<&'a Emitter<I>> {
+    impl<'a> IntoEmitter<'a> for &'a StatusEmitter {
+        fn into_emitter(self) -> Option<&'a StatusEmitter> {
             Some(self)
         }
     }
 
-    impl<'a, I> IntoEmitter<'a, I> for Option<&'a Arc<Emitter<I>>>
-    where
-        I: Send + Sync + Clone + 'static,
-    {
-        fn into_emitter(self) -> Option<&'a Emitter<I>> {
+    impl<'a> IntoEmitter<'a> for Option<&'a Arc<StatusEmitter>> {
+        fn into_emitter(self) -> Option<&'a StatusEmitter> {
             self.map(Arc::as_ref)
         }
     }
 
-    impl<'a, I> IntoEmitter<'a, I> for &'a Arc<Emitter<I>>
-    where
-        I: Send + Sync + Clone + 'static,
-    {
-        fn into_emitter(self) -> Option<&'a Emitter<I>> {
+    impl<'a> IntoEmitter<'a> for &'a Arc<StatusEmitter> {
+        fn into_emitter(self) -> Option<&'a StatusEmitter> {
             Some(self.as_ref())
         }
     }
@@ -105,18 +94,20 @@ mod __private {
         m.into_cow_opt()
     }
 
-    fn int_status_event_build_id<I>(
-        id: I,
+    fn int_status_event_build_id(
+        id: impl IntoId,
         action: impl IntoCowOpt,
         current: Option<usize>,
         total: Option<usize>,
         message: impl IntoCowOpt,
         path: Option<PathBuf>,
-    ) -> StatusEvent<I> {
+    ) -> StatusEvent {
         let action_opt = int_into_cow_opt(action);
         let event = int_event_build(action_opt, current, total);
 
-        let mut status_event = StatusEvent::builder().id(id);
+        let mut status_event = StatusEvent::builder();
+
+        status_event = status_event.id(id);
 
         let message_opt = int_into_cow_opt(message);
         if let Some(m) = message_opt {
@@ -134,37 +125,25 @@ mod __private {
 
     // =====================================================
 
-    pub fn into_opt_emitter<'a, I>(emitter: impl IntoEmitter<'a, I>) -> Option<&'a Emitter<I>> {
+    pub fn into_opt_emitter<'a>(emitter: impl IntoEmitter<'a>) -> Option<&'a StatusEmitter> {
         emitter.into_emitter()
     }
 
-    pub fn global_emit_sync<I>(bus: &'static ChannelsBus<I>, se: StatusEvent<I>)
-    where
-        I: Send + Sync + Clone + 'static,
-    {
+    pub fn global_emit_sync(bus: &'static ChannelsBus, se: StatusEvent) {
         emit_sync(bus, se);
     }
 
-    pub async fn global_emit_async<I>(bus: &'static ChannelsBus<I>, se: StatusEvent<I>)
-    where
-        I: Send + Sync + Clone + 'static,
-    {
+    pub async fn global_emit_async(bus: &'static ChannelsBus, se: StatusEvent) {
         emit_async(bus, se).await;
     }
 
-    pub fn ind_status_emit_sync<I>(emitter: Option<&Emitter<I>>, se: StatusEvent<I>)
-    where
-        I: Send + Sync + Clone + 'static,
-    {
+    pub fn ind_status_emit_sync(emitter: Option<&StatusEmitter>, se: StatusEvent) {
         if let Some(emit) = emitter {
             status_emit_sync(emit, se);
         }
     }
 
-    pub async fn ind_status_emit_async<I>(emitter: Option<&Emitter<I>>, se: StatusEvent<I>)
-    where
-        I: Send + Sync + Clone + 'static,
-    {
+    pub async fn ind_status_emit_async(emitter: Option<&StatusEmitter>, se: StatusEvent) {
         if let Some(emit) = emitter {
             status_emit_async(emit, se).await;
         }
@@ -177,19 +156,19 @@ mod __private {
         total: Option<usize>,
         message: impl IntoCowOpt,
         path: Option<PathBuf>,
-    ) -> StatusEvent<NoId> {
-        int_status_event_build_id(NoId, action, current, total, message, path)
+    ) -> StatusEvent {
+        int_status_event_build_id(Id::None, action, current, total, message, path)
     }
 
     /// Constructs a `StatusEvent` object from optional fields passed by macros with id.
-    pub fn build_status_event_id<I>(
-        id: I,
+    pub fn build_status_event_id(
+        id: impl IntoId,
         action: impl IntoCowOpt,
         current: Option<usize>,
         total: Option<usize>,
         message: impl IntoCowOpt,
         path: Option<PathBuf>,
-    ) -> StatusEvent<I> {
+    ) -> StatusEvent {
         int_status_event_build_id(id, action, current, total, message, path)
     }
 }

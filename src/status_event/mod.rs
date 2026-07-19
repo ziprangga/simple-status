@@ -72,8 +72,10 @@
 mod event;
 mod renderer;
 pub use event::Event;
+use std::any::Any;
 use std::borrow::Cow;
 use std::path::PathBuf;
+use std::sync::Arc;
 
 /// Marker type representing the absence of an ID.
 ///
@@ -87,8 +89,18 @@ use std::path::PathBuf;
 /// - Zero-sized type.
 /// - Introduces no runtime overhead.
 /// - Allows ID support without requiring `Option<I>`.
-#[derive(Debug, Default, Clone, Copy)]
-pub struct NoId;
+#[derive(Debug, Default, Clone)]
+pub enum Id {
+    #[default]
+    None,
+    U64(u64),
+    String(String),
+    Custom(Arc<dyn Any + Send + Sync>),
+}
+
+pub trait IntoId {
+    fn into_id(self) -> Id;
+}
 
 /// A renderer for converting a [`StatusEvent`] into another representation.
 ///
@@ -128,10 +140,10 @@ pub struct NoId;
 /// - Closures and functions automatically implement this trait.
 /// - Rendering is intentionally separated from storage to keep
 ///   `StatusEvent` focused on data ownership.
-pub trait StatusEventRenderer<I = NoId> {
+pub trait StatusEventRenderer {
     type Output;
 
-    fn render(&self, se: &StatusEvent<I>) -> Self::Output;
+    fn render(&self, se: &StatusEvent) -> Self::Output;
 }
 
 /// Represents a status update.
@@ -155,54 +167,19 @@ pub trait StatusEventRenderer<I = NoId> {
 ///   types without runtime overhead.
 /// - `NoId` represents the absence of an identifier.
 #[derive(Debug, Default, Clone)]
-pub struct StatusEvent<I = NoId> {
-    id: I,
+pub struct StatusEvent {
+    id: Id,
     message: Option<Cow<'static, str>>,
     event: Event,
     path: Option<PathBuf>,
 }
 
-impl StatusEvent<NoId> {
+impl StatusEvent {
     /// Creates a builder in the "no id" state.
-    pub fn builder() -> StatusEventBuilder<NoId> {
+    pub fn builder() -> StatusEventBuilder {
         StatusEventBuilder::new()
     }
 
-    /// Attaches an identifier to this status event.
-    ///
-    /// This converts a `StatusEvent<NoId>` into a `StatusEvent<I>`.
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// use simple_status::StatusEvent;
-    ///
-    /// let status = StatusEvent::builder()
-    ///     .message("Running")
-    ///     .build()
-    ///     .with_id(42u64);
-    ///
-    /// assert_eq!(*status.id(), 42);
-    /// ```
-    ///
-    /// Doc:
-    /// - Associates a strongly typed identifier with the status event.
-    /// - Changes the status event's ID type parameter.
-    ///
-    /// Note:
-    /// - Consumes the original value.
-    /// - Performs a type-state transition without cloning stored data.
-    pub fn with_id<I>(self, id: I) -> StatusEvent<I> {
-        StatusEvent {
-            id,
-            message: self.message,
-            event: self.event,
-            path: self.path,
-        }
-    }
-}
-
-impl<I> StatusEvent<I> {
     /// Returns the identifier associated with this status event.
     ///
     /// Doc:
@@ -211,7 +188,7 @@ impl<I> StatusEvent<I> {
     /// Note:
     /// - The returned type matches the status event's generic ID type.
     /// - For `StatusEvent<NoId>`, this returns a reference to the `NoId` marker.
-    pub fn id(&self) -> &I {
+    pub fn id(&self) -> &Id {
         &self.id
     }
 
@@ -257,7 +234,7 @@ impl<I> StatusEvent<I> {
     /// - No allocation is performed unless required by the renderer.
     pub fn render_with<R>(&self, renderer: R) -> R::Output
     where
-        R: StatusEventRenderer<I>,
+        R: StatusEventRenderer,
     {
         renderer.render(self)
     }
@@ -274,14 +251,65 @@ impl<I> StatusEvent<I> {
 /// - This implementation is primarily an ergonomics feature.
 /// - Most users will never need to implement
 ///   [`StatusEventRenderer`] manually.
-impl<F, O, I> StatusEventRenderer<I> for F
+impl<F, O> StatusEventRenderer for F
 where
-    F: Fn(&StatusEvent<I>) -> O,
+    F: Fn(&StatusEvent) -> O,
 {
     type Output = O;
 
-    fn render(&self, se: &StatusEvent<I>) -> Self::Output {
+    fn render(&self, se: &StatusEvent) -> Self::Output {
         (self)(se)
+    }
+}
+
+impl Id {
+    pub fn custom<T>(value: T) -> Self
+    where
+        T: Any + Send + Sync + 'static,
+    {
+        Id::Custom(Arc::new(value))
+    }
+
+    pub fn downcast_ref<T>(&self) -> Option<&T>
+    where
+        T: Any + Send + Sync + 'static,
+    {
+        match self {
+            Id::Custom(v) => v.downcast_ref::<T>(),
+            _ => None,
+        }
+    }
+
+    pub fn as_string(&self) -> Option<&str> {
+        match self {
+            Id::String(id) => Some(id),
+            _ => None,
+        }
+    }
+
+    pub fn as_u64(&self) -> Option<u64> {
+        match self {
+            Id::U64(id) => Some(*id),
+            _ => None,
+        }
+    }
+}
+
+impl IntoId for Id {
+    fn into_id(self) -> Id {
+        self
+    }
+}
+
+impl IntoId for u64 {
+    fn into_id(self) -> Id {
+        Id::U64(self)
+    }
+}
+
+impl IntoId for String {
+    fn into_id(self) -> Id {
+        Id::String(self)
     }
 }
 
@@ -299,11 +327,11 @@ where
 /// - Uses type-state transitions instead of runtime validation.
 /// - The builder type changes when an ID is attached.
 #[derive(Debug, Default, Clone)]
-pub struct StatusEventBuilder<I = NoId> {
-    status_event: StatusEvent<I>,
+pub struct StatusEventBuilder {
+    status_event: StatusEvent,
 }
 
-impl StatusEventBuilder<NoId> {
+impl StatusEventBuilder {
     pub fn new() -> Self {
         Self {
             status_event: StatusEvent::default(),
@@ -316,14 +344,14 @@ impl StatusEventBuilder<NoId> {
     /// let builder = StatusEvent::builder().id(42);
     /// // StatusEventBuilder<u64>
     /// ```
-    pub fn id<I>(self, id: I) -> StatusEventBuilder<I> {
-        StatusEventBuilder {
-            status_event: self.status_event.with_id(id),
-        }
+    pub fn id<T>(mut self, id: T) -> Self
+    where
+        T: IntoId,
+    {
+        self.status_event.id = id.into_id();
+        self
     }
-}
 
-impl<I> StatusEventBuilder<I> {
     pub fn message(mut self, msg: impl Into<Cow<'static, str>>) -> Self {
         self.status_event.message = Some(msg.into());
         self
@@ -350,7 +378,7 @@ impl<I> StatusEventBuilder<I> {
     /// - No validation is performed.
     /// - Message, event, and path are optional.
     /// - A status event may be constructed with or without an ID.
-    pub fn build(self) -> StatusEvent<I> {
+    pub fn build(self) -> StatusEvent {
         self.status_event
     }
 }

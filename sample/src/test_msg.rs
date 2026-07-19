@@ -1,4 +1,4 @@
-use simple_status::{ChannelsBus, Emitter};
+use simple_status::{ChannelsBus, StatusEmitter};
 use simple_status::{StatusEvent, status, status_emit};
 use tokio::time::Duration;
 
@@ -8,11 +8,11 @@ pub fn direct_message() -> StatusEvent {
     status!("this is DIRECT")
 }
 
-pub fn emit_sync_message(emitter: &Emitter) {
+pub fn emit_sync_message(emitter: &StatusEmitter) {
     status_emit!(emitter, "{}", "this is EMIT SYNC INDEPENDENT".to_string());
 }
 
-pub async fn emit_async_message(emitter: &Emitter) {
+pub async fn emit_async_message(emitter: &StatusEmitter) {
     status_emit!(
         async,
         emitter,
@@ -30,29 +30,32 @@ pub async fn global_emit_async_message() {
 }
 
 /// Note:
-/// This example emits all status updates synchronously in a tight loop.
+/// This example emits a status update synchronously using a custom `String` ID.
 ///
-/// Because the loop does not yield control between emissions, receivers may
-/// process multiple queued updates together. Applications that display only the
-/// most recent status may therefore show only the final progress value.
-///
-/// If each progress update should be observed individually, use the async
-/// example or introduce a delay between emissions.
-pub fn independent_emit_sync_with_progress(emitter: &Emitter) {
-    let total = 20;
-
-    for current in 0..=total {
+/// The ID allows receivers to associate the event with a specific task or
+/// source.
+pub fn independent_emit_sync_with_id(emitter: &StatusEmitter, id: Option<String>) {
+    if let Some(id) = id {
         status_emit!(
             emitter,
-            action: "INDEPENDENT EMIT SYNC",
-            current: current,
-            total: total,
+            id: id,
+            action: "INDEPENDENT EMIT SYNC WITH ID",
+            current: 1,
+            total: 5,
             message: "build style",
-        );
+        )
+    } else {
+        status_emit!(
+            emitter,
+            action: "INDEPENDENT EMIT SYNC WITH ID SKIP USING NONE",
+            current: 1,
+            total: 5,
+            message: "build style",
+        )
     }
 }
 
-pub async fn independent_emit_async_with_progress(emitter: &Emitter) {
+pub async fn independent_emit_async_with_progress(emitter: &StatusEmitter) {
     let total = 20;
 
     for current in 0..=total {
@@ -78,17 +81,24 @@ pub async fn independent_emit_async_with_progress(emitter: &Emitter) {
 ///
 /// If each progress update should be observed individually, use the async
 /// example or introduce a delay between emissions.
-pub fn global_emit_sync_with_progress() {
-    let total = 20;
-
-    for current in 0..=total {
+pub fn global_emit_sync_with_id(id: Option<String>) {
+    if let Some(id) = id {
         status_emit!(
             bus TEST_BUS,
-            action: "GLOBAL EMIT SYNC",
-            current: current,
-            total: total,
+            id: id,
+            action: "GLOBAL EMIT SYNC WITH ID",
+            current: 1,
+            total: 5,
             message: "build style",
-        );
+        )
+    } else {
+        status_emit!(
+            bus TEST_BUS,
+            action: "GLOBAL EMIT SYNC WITH ID SKIP USING NONE",
+            current: 1,
+            total: 5,
+            message: "build style",
+        )
     }
 }
 

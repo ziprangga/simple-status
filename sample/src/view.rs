@@ -18,10 +18,10 @@ pub fn view(state: &AppState) -> Element<'_, AppMessage> {
         StatusSource::GlobalEmitSync => Color::from_rgb8(0, 128, 255),
         StatusSource::GlobalEmitAsync => Color::from_rgb8(128, 0, 255),
 
-        StatusSource::IndependentEmitSyncWithProgress => Color::from_rgb8(0, 200, 100),
+        StatusSource::IndependentEmitSyncWithId => Color::from_rgb8(0, 200, 100),
         StatusSource::IndependentEmitAsyncWithProgress => Color::from_rgb8(100, 200, 0),
 
-        StatusSource::GlobalEmitSyncWithProgress => Color::from_rgb8(0, 200, 200),
+        StatusSource::GlobalEmitSyncWithId => Color::from_rgb8(0, 200, 200),
         StatusSource::GlobalEmitAsyncWithProgress => Color::from_rgb8(200, 0, 200),
     };
 
@@ -71,11 +71,11 @@ pub fn view(state: &AppState) -> Element<'_, AppMessage> {
             .on_press(AppMessage::ButtonGlobalEmitAsync),
     );
 
-    let button_independent_sync_progress = Container::new(
-        button(text("Independent Sync Progress").size(12))
+    let button_independent_sync_id = Container::new(
+        button(text("Independent Sync Id").size(12))
             .custom_style(ButtonThemeStyle::BlankBorder)
             .width(Length::Fill)
-            .on_press(AppMessage::ButtonIndependentEmitSyncWithProgress),
+            .on_press(AppMessage::ButtonIndependentEmitSyncWithId),
     );
 
     let button_independent_async_progress = Container::new(
@@ -85,11 +85,11 @@ pub fn view(state: &AppState) -> Element<'_, AppMessage> {
             .on_press(AppMessage::ButtonIndependentEmitAsyncWithProgress),
     );
 
-    let button_global_sync_progress = Container::new(
-        button(text("Global Sync Progress").size(12))
+    let button_global_sync_id = Container::new(
+        button(text("Global Sync Id").size(12))
             .custom_style(ButtonThemeStyle::Default)
             .width(Length::Fill)
-            .on_press(AppMessage::ButtonGlobalEmitSyncWithProgress),
+            .on_press(AppMessage::ButtonGlobalEmitSyncWithId),
     );
 
     let button_global_async_progress = Container::new(
@@ -106,9 +106,9 @@ pub fn view(state: &AppState) -> Element<'_, AppMessage> {
             .push(button_emit_async)
             .push(button_global_emit_sync)
             .push(button_global_emit_async)
-            .push(button_independent_sync_progress)
+            .push(button_independent_sync_id)
             .push(button_independent_async_progress)
-            .push(button_global_sync_progress)
+            .push(button_global_sync_id)
             .push(button_global_async_progress)
             .spacing(10)
             .width(Length::Fill)

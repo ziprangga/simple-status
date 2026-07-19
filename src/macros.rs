@@ -15,6 +15,9 @@
 #[macro_export]
 #[clippy::format_args]
 macro_rules! __status {
+    // ==========================
+    // NAME FIELD
+    // ==========================
     (
         $(id: $id:expr,)?
         $(action: $action:expr,)?
@@ -35,33 +38,74 @@ macro_rules! __status {
         )
     }};
 
-    ($(id: $id:expr,)? $message:expr) => {{
-            $crate::__status!(@build
-                $($id)?
-                ;
-                None::<&'static str>,
-                None,
-                None,
-                $message,
-                None
-            )
-        }};
+    (id: $id:expr, $message:expr) => {{
+        $crate::__status!(@build
+            $id
+            ;
+            None::<&'static str>,
+            None,
+            None,
+            $message,
+            None
+        )
+    }};
 
-    ($(id: $id:expr,)? $fmt:expr, $($arg:tt)+) => {{
-            $crate::__status!(@build
-                $($id)?
-                ;
-                None::<&'static str>,
-                None,
-                None,
-                format!($fmt, $($arg)+),
-                None
-            )
-        }};
+    (id: $id:expr, $fmt:expr, $($arg:tt)+) => {{
+        $crate::__status!(@build
+            $id
+            ;
+            None::<&'static str>,
+            None,
+            None,
+            format!($fmt, $($arg)+),
+            None
+        )
+    }};
+
+    ($message:expr) => {{
+        $crate::__status!(@build
+            ;
+            None::<&'static str>,
+            None,
+            None,
+            $message,
+            None
+        )
+    }};
+
+    ($fmt:expr, $($arg:tt)+) => {{
+        $crate::__status!(@build
+            ;
+            None::<&'static str>,
+            None,
+            None,
+            format!($fmt, $($arg)+),
+            None
+        )
+    }};
+
+
 
     // --------------------------
     // internal id dispatch
     // --------------------------
+
+    (@build
+        ;
+        $action:expr,
+        $current:expr,
+        $total:expr,
+        $message:expr,
+        $path:expr
+    ) => {
+        $crate::__private_helper::build_status_event_no_id(
+            $action,
+            $current,
+            $total,
+            $message,
+            $path,
+        )
+    };
 
     (@build
         $id:expr;
@@ -73,23 +117,6 @@ macro_rules! __status {
     ) => {
         $crate::__private_helper::build_status_event_id(
             $id,
-            $action,
-            $current,
-            $total,
-            $message,
-            $path,
-        )
-    };
-
-    (@build
-        ;
-        $action:expr,
-        $current:expr,
-        $total:expr,
-        $message:expr,
-        $path:expr
-    ) => {
-        $crate::__private_helper::build_status_event_no_id(
             $action,
             $current,
             $total,

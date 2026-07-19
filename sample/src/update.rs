@@ -7,8 +7,8 @@ use crate::state::{AppMessage, AppState, StatusSource};
 use crate::task::{
     direct_message_task, emit_async_message_task, emit_sync_message_task,
     global_emit_async_message_task, global_emit_async_with_progress_task,
-    global_emit_sync_message_task, global_emit_sync_with_progress_task,
-    independent_emit_async_with_progress_task, independent_emit_sync_with_progress_task,
+    global_emit_sync_message_task, global_emit_sync_with_id_task,
+    independent_emit_async_with_progress_task, independent_emit_sync_with_id_task,
 };
 
 pub fn update(state: &mut AppState, message: AppMessage) -> Task<AppMessage> {
@@ -86,14 +86,14 @@ pub fn update(state: &mut AppState, message: AppMessage) -> Task<AppMessage> {
             )
         }
 
-        AppMessage::ButtonIndependentEmitSyncWithProgress => {
-            state.source = StatusSource::IndependentEmitSyncWithProgress;
+        AppMessage::ButtonIndependentEmitSyncWithId => {
+            state.source = StatusSource::IndependentEmitSyncWithId;
             let channels = create_channels(100, ChannelKind::Mpsc);
             let emitter = channels.get_emitter();
 
             let emit_task = Task::perform(
                 async move {
-                    independent_emit_sync_with_progress_task(&emitter).await;
+                    independent_emit_sync_with_id_task(&emitter, Some("test-id".to_string())).await;
                     AppMessage::NoOperations
                 },
                 |msg| msg,
@@ -128,12 +128,12 @@ pub fn update(state: &mut AppState, message: AppMessage) -> Task<AppMessage> {
             Task::batch(vec![emit_task, stream_task])
         }
 
-        AppMessage::ButtonGlobalEmitSyncWithProgress => {
-            state.source = StatusSource::GlobalEmitSyncWithProgress;
+        AppMessage::ButtonGlobalEmitSyncWithId => {
+            state.source = StatusSource::GlobalEmitSyncWithId;
 
             Task::perform(
                 async {
-                    global_emit_sync_with_progress_task().await;
+                    global_emit_sync_with_id_task(Some("test-id".to_string())).await;
                     AppMessage::NoOperations
                 },
                 |msg| msg,

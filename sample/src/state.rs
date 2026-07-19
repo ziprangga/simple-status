@@ -12,10 +12,10 @@ pub enum StatusSource {
     GlobalEmitSync,
     GlobalEmitAsync,
 
-    IndependentEmitSyncWithProgress,
+    IndependentEmitSyncWithId,
     IndependentEmitAsyncWithProgress,
 
-    GlobalEmitSyncWithProgress,
+    GlobalEmitSyncWithId,
     GlobalEmitAsyncWithProgress,
 }
 
@@ -31,10 +31,10 @@ pub enum AppMessage {
     ButtonGlobalEmitSync,
     ButtonGlobalEmitAsync,
 
-    ButtonIndependentEmitSyncWithProgress,
+    ButtonIndependentEmitSyncWithId,
     ButtonIndependentEmitAsyncWithProgress,
 
-    ButtonGlobalEmitSyncWithProgress,
+    ButtonGlobalEmitSyncWithId,
     ButtonGlobalEmitAsyncWithProgress,
 
     NoOperations,

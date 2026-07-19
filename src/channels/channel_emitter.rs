@@ -28,9 +28,8 @@ use crate::channels::BoxFuture;
 use crate::channels::BroadcastReceiver;
 use crate::channels::EmitterHandler;
 use crate::channels::Receiver;
-use crate::status_event::StatusEvent;
 
-/// Emits `Status Event` values through a Tokio MPSC channel.
+/// Emits values through a Tokio MPSC channel.
 ///
 /// Doc:
 /// Wraps `tokio::sync::mpsc::Sender` as an `EmitterHandler`.
@@ -39,39 +38,39 @@ use crate::status_event::StatusEvent;
 /// MPSC channels support a single receiver. Calling `subscribe()` always
 /// returns `None`.
 #[derive(Debug, Clone)]
-pub struct MpscEmitter<I> {
-    sender: mpsc::Sender<StatusEvent<I>>,
+pub struct MpscEmitter<T> {
+    sender: mpsc::Sender<T>,
 }
 
-impl<I> MpscEmitter<I>
+impl<T> MpscEmitter<T>
 where
-    I: Send + Sync + Clone + 'static,
+    T: Send + Sync + Clone + 'static,
 {
-    pub fn new(sender: mpsc::Sender<StatusEvent<I>>) -> Self {
+    pub fn new(sender: mpsc::Sender<T>) -> Self {
         Self { sender }
     }
 }
 
-impl<I> EmitterHandler<I> for MpscEmitter<I>
+impl<T> EmitterHandler<T> for MpscEmitter<T>
 where
-    I: Send + Sync + Clone + 'static,
+    T: Send + Sync + Clone + 'static,
 {
-    fn try_emit(&self, se: StatusEvent<I>) {
+    fn try_emit(&self, se: T) {
         let _ = self.sender.try_send(se);
     }
 
-    fn emit(&self, se: StatusEvent<I>) -> BoxFuture<'_, ()> {
+    fn emit(&self, se: T) -> BoxFuture<'_, ()> {
         Box::pin(async move {
             let _ = self.sender.send(se).await;
         })
     }
 
-    fn subscribe(&self) -> Option<Arc<Receiver<I>>> {
+    fn subscribe(&self) -> Option<Arc<Receiver<T>>> {
         None
     }
 }
 
-/// Emits `Status Event` values through a Tokio broadcast channel.
+/// Emits  values through a Tokio broadcast channel.
 ///
 /// Doc:
 /// Wraps `tokio::sync::broadcast::Sender` as an `EmitterHandler`.
@@ -80,34 +79,34 @@ where
 /// Supports multiple subscribers. Each call to `subscribe()` creates a new
 /// independent receiver.
 #[derive(Debug, Clone)]
-pub struct BroadcastEmitter<I> {
-    sender: broadcast::Sender<StatusEvent<I>>,
+pub struct BroadcastEmitter<T> {
+    sender: broadcast::Sender<T>,
 }
 
-impl<I> BroadcastEmitter<I>
+impl<T> BroadcastEmitter<T>
 where
-    I: Send + Sync + Clone + 'static,
+    T: Send + Sync + Clone + 'static,
 {
-    pub fn new(sender: broadcast::Sender<StatusEvent<I>>) -> Self {
+    pub fn new(sender: broadcast::Sender<T>) -> Self {
         Self { sender }
     }
 }
 
-impl<I> EmitterHandler<I> for BroadcastEmitter<I>
+impl<T> EmitterHandler<T> for BroadcastEmitter<T>
 where
-    I: Send + Sync + Clone + 'static,
+    T: Send + Sync + Clone + 'static,
 {
-    fn try_emit(&self, se: StatusEvent<I>) {
+    fn try_emit(&self, se: T) {
         let _ = self.sender.send(se);
     }
 
-    fn emit(&self, se: StatusEvent<I>) -> BoxFuture<'_, ()> {
+    fn emit(&self, se: T) -> BoxFuture<'_, ()> {
         Box::pin(async move {
             self.try_emit(se);
         })
     }
 
-    fn subscribe(&self) -> Option<Arc<Receiver<I>>> {
+    fn subscribe(&self) -> Option<Arc<Receiver<T>>> {
         let rx = self.sender.subscribe();
         let receiver = BroadcastReceiver::new(rx);
         Some(Arc::new(Receiver::new(Arc::new(receiver))))

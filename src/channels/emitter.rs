@@ -2,8 +2,6 @@ use std::sync::Arc;
 
 use crate::channels::BoxFuture;
 use crate::channels::Receiver;
-use crate::status_event::NoId;
-use crate::status_event::StatusEvent;
 
 /// Trait implemented by emitter backends.
 ///
@@ -13,29 +11,29 @@ use crate::status_event::StatusEvent;
 /// Note:
 /// Library users typically interact with `Emitter` instead of implementing this
 /// trait unless they are creating a custom transport.
-pub trait EmitterHandler<I>: Send + Sync {
-    /// Emits a status synchronously.
+pub trait EmitterHandler<T>: Send + Sync {
+    /// Emits a value synchronously.
     ///
     /// Note:
     /// This method should complete the emission before returning.
-    fn try_emit(&self, se: StatusEvent<I>);
+    fn try_emit(&self, se: T);
 
-    /// Emits a status asynchronously.
+    /// Emits a valueasynchronously.
     ///
     /// Note:
     /// The returned future is driven by the caller and does not begin
     /// execution until it is polled.
-    fn emit(&self, se: StatusEvent<I>) -> BoxFuture<'_, ()>;
+    fn emit(&self, se: T) -> BoxFuture<'_, ()>;
 
     /// Creates a new receiver from this emitter, if supported.
     ///
     /// Note:
     /// Implementations that do not support creating additional receivers
     /// should return `None`.
-    fn subscribe(&self) -> Option<Arc<Receiver<I>>>;
+    fn subscribe(&self) -> Option<Arc<Receiver<T>>>;
 }
 
-/// Type-erased status emitter.
+/// Type-erased value emitter.
 ///
 /// Doc:
 /// Provides a uniform API over any type implementing
@@ -45,36 +43,36 @@ pub trait EmitterHandler<I>: Send + Sync {
 /// Uses dynamic dispatch (`Arc<dyn EmitterHandler>`) so different emitter
 /// implementations share the same public interface.
 #[derive(Clone)]
-pub struct Emitter<I = NoId> {
-    emitter: Arc<dyn EmitterHandler<I>>,
+pub struct Emitter<T> {
+    emitter: Arc<dyn EmitterHandler<T>>,
 }
 
-impl<I> Emitter<I>
+impl<T> Emitter<T>
 where
-    I: Send + Sync + Clone + 'static,
+    T: Send + Sync + Clone + 'static,
 {
-    // pub fn new(emitter: Arc<dyn EmitterHandler<I>>) -> Self {
-    //     Self { emitter }
-    // }
+    pub fn new(emitter: Arc<dyn EmitterHandler<T>>) -> Self {
+        Self { emitter }
+    }
 
-    /// Emits a status synchronously.
-    pub fn emit_sync(&self, se: StatusEvent<I>) {
+    /// Emits a value synchronously.
+    pub fn emit_sync(&self, se: T) {
         self.emitter.try_emit(se);
     }
 
-    /// Emits a status asynchronously.
-    pub async fn emit_async(&self, se: StatusEvent<I>) {
+    /// Emits a value asynchronously.
+    pub async fn emit_async(&self, se: T) {
         self.emitter.emit(se).await;
     }
 
     /// Creates a new receiver from this emitter, if supported.
-    pub fn subscribe(&self) -> Option<Arc<Receiver<I>>> {
+    pub fn subscribe(&self) -> Option<Arc<Receiver<T>>> {
         self.emitter.subscribe()
     }
 
     pub fn from_handler<H>(handler: H) -> Self
     where
-        H: EmitterHandler<I> + 'static,
+        H: EmitterHandler<T> + 'static,
     {
         Self {
             emitter: Arc::new(handler),
@@ -82,18 +80,10 @@ where
     }
 }
 
-// impl<T: EmitterHandler + 'static> From<T> for Emitter {
-//     fn from(handler: T) -> Self {
-//         Self {
-//             emitter: Arc::new(handler),
-//         }
-//     }
-// }
-
-impl<I> std::fmt::Debug for Emitter<I> {
+impl<T> std::fmt::Debug for Emitter<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("StatusEmitter")
-            .field("emitter", &"<dyn StatusEmitterHandler>")
+            .field("emitter", &"<dyn valueEmitterHandler>")
             .finish()
     }
 }

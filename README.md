@@ -1,19 +1,24 @@
 # simple-status
 
-A **lightweight Rust crate** for emitting and tracking status events in asynchronous applications. Supports flexible **progress tracking**, **messages**, and **custom paths**, with **async-compatible channels** for reactive status updates.
+A lightweight Rust crate for creating, emitting, and receiving status events.
+
+The crate provides a simple event model (`StatusEvent`) together with flexible
+channel abstractions for transporting events between components. Applications
+can either use independent channels or store channels in a shared
+`ChannelsBus` for application-wide access.
 
 ## Features
 
-* Independent Channels: Create isolated status streams with `create_channels()` without relying on global state.
-* Global Status System: Initialize once with `init_channels()` and emit status events from anywhere using `status_emit!`.
-* Asynchronous and synchronous status event handling using `Emitter` and `Receiver`.
-* Flexible Progress Tracking: Built-in support for `action`, `current`, `total`, `message`, and `PathBuf`.
-* Simple macros for building and emitting status events: `status!` and `status_emit!`.
-* Zero-Branching Strategy: Specialized `Mpsc` and `Broadcast` implementations for maximum performance.
-* Thread-safe, `Arc`-wrapped channels for safe multi-threaded usage.
-* Broadcast Subscribers: Create additional receivers from broadcast channels using `subscribe()`.
-* Dual-Stream Support: `stream_sync()` for local borrows and `stream_async()` for 'static lifetimes (required by Iced Tasks).
-* Works with `iced` or any async runtime (e.g., Tokio).
+- Independent Channels: Create isolated event pipelines with `create_channels()`.
+- Shared Channels: Store channels in a `ChannelsBus` and initialize them once with `init_channels()`.
+- Synchronous and asynchronous event emission and reception.
+- Built-in status event model with progress tracking, messages, and paths.
+- `status!` and `status_emit!` macros for concise event creation and emission.
+- MPSC and Broadcast channel implementations.
+- Broadcast subscriptions via `subscribe()`.
+- Stream support through `stream()`.
+- Thread-safe and async-runtime friendly.
+- Works with Tokio, Iced, and other async ecosystems.
 
 ## Example
 
@@ -38,14 +43,17 @@ iced = { version = "0.14", features = ["tokio"] }  # optional if using iced
 
 ## Usage
 
-### Using independent channels
+### Independent channels
+
+Use independent channels when communication should remain local to a component,
+subsystem, or test.
 
 ```rust
-use simple_status::{create_channels, ChannelKind};
-
-let channels = create_channels(10, ChannelKind::Broadcast);
-You can emit and receive status events directly through the returned Channels instance.
-use simple_status::{create_channels, ChannelKind, status};
+use simple_status::{
+    create_channels,
+    ChannelKind,
+    status,
+};
 
 let channels = create_channels(10, ChannelKind::Broadcast);
 
@@ -58,80 +66,199 @@ channels.emit_sync(
     )
 );
 
-if let Some(status) = channels.recv_sync() {
-    println!("{}", status);
+if let Some(event) = channels.recv_sync() {
+    println!("{}", event);
 }
 ```
 
-### Using global Channels (example using iced gui)
+### Shared channels with `ChannelsBus`
+
+Use a `ChannelsBus` when channels should be shared across an application.
 
 ```rust
-use simple_status::{init_channels, ChannelKind};
+use simple_status::{
+    ChannelKind,
+    ChannelsBus,
+    init_channels,
+};
 
-let channels = init_channels(10, ChannelKind::Broadcast);
+static STATUS_BUS: ChannelsBus = ChannelsBus::new();
+
+fn main() {
+    init_channels(&STATUS_BUS, 32, ChannelKind::Broadcast);
+}
+```
+After initialization:
+
+```rust
+use simple_status::{emit_sync, recv_sync};
+
+emit_sync(
+    &STATUS_BUS,
+    status!("Application started")
+);
+
+if let Some(event) = recv_sync(&STATUS_BUS) {
+    println!("{}", event);
+}
+```
+
+### Creating events
+
+Use the `status!` macro to construct a `StatusEvent`.
+
+```rust
+use simple_status::status;
+
+let event = status!(
+    action: "Build",
+    current: 2,
+    total: 10,
+    message: "Compiling project",
+);
+```
+
+Message-only form:
+
+```rust
+use simple_status::status;
+
+let event = status!("Build completed");
+```
+
+Formatting is also supported:
+
+```rust
+use simple_status::status;
+
+let file = "main.rs";
+
+let event = status!("Compiling {}", file);
+```
+
+### Emitting events with `status_emit!`
+
+The `status_emit!` macro combines event construction and emission into a
+single call.
+
+#### Emit through a shared `ChannelsBus`
+
+Using the `STATUS_BUS` defined in the previous section:
+
+```rust
+static STATUS_BUS: ChannelsBus = ChannelsBus::new();
+
+init_channels(&STATUS_BUS, 32, ChannelKind::Broadcast);
+```
+Emit synchronously:
+
+```rust
+use simple_status::status_emit;
+
+status_emit!(
+    bus STATUS_BUS,
+    "Application started"
+);
+```
+
+Emit asynchronously:
+
+```rust
+# async {
+use simple_status::status_emit;
+
+status_emit!(
+    async,
+    bus STATUS_BUS,
+    action: "Download",
+    current: 5,
+    total: 10,
+);
+# }
+```
+
+#### Emit through an emitter
+
+Emit asynchronously:
+
+```rust
+use simple_status::{status_emit, StatusEmitter};
+
+fn emit_sync_message(emitter: &StatusEmitter) {
+    status_emit!(
+        emitter,
+        "{}",
+        "this is EMIT SYNC INDEPENDENT".to_string()
+    );
+}
+```
+
+Emit asynchronously:
+
+```rust
+use simple_status::status_emit;
+
+async fn emit_async_message(emitter: &StatusEmitter) {
+    status_emit!(
+        async,
+        emitter,
+        "{}",
+        "this is EMIT ASYNC INDEPENDENT".to_string()
+    );
+}
 ```
 
 ### Receiving events asynchronously
 
 ```rust
-if let Some(emitter) = &channel.get_emitter() {
-    // when use argument Option<&Emitter>
-    running_function(Some(&emitter)).await
-    
-    // Standard async receive
-    if let Some(status) = channels.recv_async().await {
-        println!("{}", status); 
-    }
-
+if let Some(event) = channels.recv_async().await {
+    println!("{}", event);
 }
+```
 
+### Streaming events
 
-// For background tasks (returns a 'static stream), look sample for more info
-if let Some(mut stream) = channels.stream_async() {
-    while let Some(status) = stream.next().await {
-        println!("Received: {}", status);
+```rust
+use futures::StreamExt;
+
+if let Some(mut stream) = channels.stream() {
+    while let Some(event) = stream.next().await {
+        println!("{}", event);
     }
 }
 ```
 
-### Emit a status event
+### Broadcast subscriptions
+
+Broadcast channels can create additional receivers.
 
 ```rust
-use simple_status::{status, status_emit};
-
-let emitter = channels.get_emitter();
-
-// Using the builder-style macro
-let event = status!( action: "Downloading", current: 3, total: 10, message: "Downloading file 3 of 10", );
-
-// Return Status directly
-status!("message")
-
-// Emit asynchronously (await required)
-status_emit!( async, &emitter, action: "Downloading", current: 3, total: 10, message: "Downloading file 3 of 10" );
-
-// Emit synchronously
-status_emit!(&emitter, "All tasks completed!");
+if let Some(receiver) = channels.subscribe() {
+    if let Some(event) = receiver.recv_async().await {
+        println!("{}", event);
+    }
+}
 ```
-
-### Build custom status
-
-```rust
-use simple_status::status;
-use std::path::PathBuf;
-
-let s = status!( action: "Processing", message: "Analyzing data...", path: PathBuf::from("/logs/app.log"), );
-```
-
-### Channels API
-
-* `Emitter` – used to send status events asynchronously or synchronously.
-* `Receiver` – used to receive status events asynchronously or synchronously.
-* `Channels` – holds both emitter and receiver and allows creating new subscribers for broadcast channels.
-
+Broadcast channels additionally support subscriptions through `subscribe()`.
 ```rust
 let new_sub = channels.subscriber(); // Option<Arc<Receiver>>
 ```
+
+## Channel Implementations
+
+The crate currently provides two built-in channel implementations:
+
+- `ChannelKind::Mpsc`
+- `ChannelKind::Broadcast`
+
+## Core Types
+
+- `StatusEvent` – event data structure.
+- `Emitter` – sends events.
+- `Receiver` – receives events.
+- `Channels` – owns an emitter and receiver pair.
+- `ChannelsBus` – stores a shared channel set initialized once.
+
 
 ## License
 

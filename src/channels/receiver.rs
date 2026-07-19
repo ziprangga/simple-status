@@ -3,8 +3,6 @@ use std::sync::Arc;
 
 use crate::channels::BoxFuture;
 use crate::channels::BoxStream;
-use crate::status_event::NoId;
-use crate::status_event::StatusEvent;
 
 /// Trait implemented by receiver backends.
 ///
@@ -14,96 +12,88 @@ use crate::status_event::StatusEvent;
 /// Note:
 /// Custom channel implementations implement this trait to integrate with the
 /// library.
-pub trait ReceiverHandler<I>: Send + Sync {
-    /// Receives a status synchronously.
+pub trait ReceiverHandler<T>: Send + Sync {
+    /// Receives a value synchronously.
     ///
     /// Note:
-    /// This method should return immediately. If no status is available,
+    /// This method should return immediately. If no value is available,
     /// it should return `None` instead of waiting.
-    fn try_recv(&self) -> Option<StatusEvent<I>>;
+    fn try_recv(&self) -> Option<T>;
 
-    /// Receives a status asynchronously.
+    /// Receives a value asynchronously.
     ///
     /// Note:
     /// The returned future is driven by the caller and does not begin
     /// execution until it is polled.
-    fn recv(&self) -> BoxFuture<'_, Option<StatusEvent<I>>>;
+    fn recv(&self) -> BoxFuture<'_, Option<T>>;
 
-    /// Creates a stream of received statuses.
+    /// Creates a stream of received values.
     ///
     /// Note:
-    /// The returned stream is driven by the caller and yields statuses
+    /// The returned stream is driven by the caller and yields valuees
     /// until the receiver is exhausted or the underlying channel is closed.
-    fn stream(&self) -> BoxStream<'_, StatusEvent<I>>;
+    fn stream(&self) -> BoxStream<'_, T>;
 }
 
-/// Type-erased status receiver.
+/// Type-erased value receiver.
 ///
 /// Doc:
 /// Provides synchronous, asynchronous, and streaming access to received
-/// statuses.
+/// values.
 ///
 /// Note:
 /// Like `Emitter`, this type hides the concrete receiver implementation behind
 /// dynamic dispatch.
 #[derive(Clone)]
-pub struct Receiver<I = NoId> {
-    receiver: Arc<dyn ReceiverHandler<I>>,
+pub struct Receiver<T> {
+    receiver: Arc<dyn ReceiverHandler<T>>,
 }
 
-impl<I> Receiver<I>
+impl<T> Receiver<T>
 where
-    I: Send + Sync + Clone + 'static,
+    T: Send + Sync + Clone + 'static,
 {
-    pub fn new(receiver: Arc<dyn ReceiverHandler<I>>) -> Self {
+    pub fn new(receiver: Arc<dyn ReceiverHandler<T>>) -> Self {
         Self { receiver }
     }
 
-    /// Attempts to receive a status synchronously.
-    pub fn sync_recv(&self) -> Option<StatusEvent<I>> {
+    /// Attempts to receive a value synchronously.
+    pub fn sync_recv(&self) -> Option<T> {
         self.receiver.try_recv()
     }
 
-    /// Receives the next status asynchronously.
-    pub async fn async_recv(&self) -> Option<StatusEvent<I>> {
+    /// Receives the next value asynchronously.
+    pub async fn async_recv(&self) -> Option<T> {
         self.receiver.recv().await
     }
 
     /// Converts this receiver into an asynchronous stream.
     ///
     /// Doc:
-    /// The stream repeatedly calls `async_recv()` until no more statuses are
+    /// The stream repeatedly calls `async_recv()` until no more values are
     /// available.
     ///
     /// Note:
     /// This is a convenience wrapper built using `futures::stream::unfold`.
-    pub fn stream(&self) -> Option<BoxStream<'static, StatusEvent<I>>> {
+    pub fn stream(&self) -> Option<BoxStream<'static, T>> {
         let this = self.clone();
         let s = stream::unfold(this, |res| async move {
             let se = res.async_recv().await?;
             Some((se, res))
         });
 
-        Some(Box::pin(s) as BoxStream<'static, StatusEvent<I>>)
+        Some(Box::pin(s) as BoxStream<'static, T>)
     }
 
     pub fn from_handler<H>(handler: H) -> Self
     where
-        H: ReceiverHandler<I> + 'static,
+        H: ReceiverHandler<T> + 'static,
     {
         Self {
             receiver: Arc::new(handler),
         }
     }
 }
-
-// impl<T: ReceiverHandler + 'static> From<T> for Receiver {
-//     fn from(handler: T) -> Self {
-//         Self {
-//             receiver: Arc::new(handler),
-//         }
-//     }
-// }
 
 impl<I> std::fmt::Debug for Receiver<I> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
