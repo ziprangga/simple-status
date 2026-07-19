@@ -1,9 +1,18 @@
-// Doc:
-// Internal helpers used exclusively by the crate's procedural interface
-// (macros).
-//
-// Note:
-// These items are not part of the public API and may change without notice.
+//! Doc:
+//! Internal helper utilities used by crate macros.
+//!
+//! Provides:
+//! - StatusEvent construction helpers.
+//! - Emitter conversion helpers.
+//! - Global and emitter-based emission helpers.
+//!
+//! Note:
+//! - Not part of the public API.
+//! - Intended exclusively for macro expansion.
+//! - Public code should use the crate's macros and APIs instead.
+//! - Function signatures may change without notice.
+//!...
+
 #[doc(hidden)]
 mod __private {
     use crate::ChannelsBus;
@@ -20,6 +29,15 @@ mod __private {
     use std::path::PathBuf;
     use std::sync::Arc;
 
+    /// Converts various emitter references into a common optional form.
+    ///
+    /// Doc:
+    /// Normalizes emitter arguments accepted by crate macros.
+    ///
+    /// Note:
+    /// - Used internally by macro expansion.
+    /// - Supports direct and optional emitter references.
+    /// - Not intended for public use.
     pub trait IntoEmitter<'a> {
         fn into_emitter(self) -> Option<&'a StatusEmitter>;
     }
@@ -48,6 +66,15 @@ mod __private {
         }
     }
 
+    /// Converts supported message inputs into an optional `Cow<str>`.
+    ///
+    /// Doc:
+    /// Normalizes macro string arguments before status construction.
+    ///
+    /// Note:
+    /// - Used internally by macro expansion.
+    /// - Supports borrowed, owned, and optional string values.
+    /// - Not part of the public API.
     pub trait IntoCowOpt {
         fn into_cow_opt(self) -> Option<Cow<'static, str>>;
     }
@@ -70,6 +97,10 @@ mod __private {
         }
     }
 
+    /// Constructs an `Event` from normalized optional fields.
+    ///
+    /// Note:
+    /// Internal helper used during macro-generated status construction.
     fn int_event_build(
         action: Option<Cow<'static, str>>,
         current: Option<usize>,
@@ -94,6 +125,15 @@ mod __private {
         m.into_cow_opt()
     }
 
+    /// Constructs a `StatusEvent` from normalized macro inputs.
+    ///
+    /// Doc:
+    /// Centralizes status construction logic shared by all macro forms.
+    ///
+    /// Note:
+    /// - Accepts any identifier implementing `IntoId`.
+    /// - Used exclusively by internal macro helpers.
+    /// - Not part of the public API.
     fn int_status_event_build_id(
         id: impl IntoId,
         action: impl IntoCowOpt,
@@ -125,10 +165,18 @@ mod __private {
 
     // =====================================================
 
+    /// Converts a macro emitter argument into an optional emitter reference.
+    ///
+    /// Note:
+    /// Internal helper used by `status_emit!` macro expansion.
     pub fn into_opt_emitter<'a>(emitter: impl IntoEmitter<'a>) -> Option<&'a StatusEmitter> {
         emitter.into_emitter()
     }
 
+    /// Emits a status event through a `ChannelsBus`.
+    ///
+    /// Note:
+    /// Internal helper used by macro expansion.
     pub fn global_emit_sync(bus: &'static ChannelsBus, se: StatusEvent) {
         emit_sync(bus, se);
     }
@@ -137,6 +185,11 @@ mod __private {
         emit_async(bus, se).await;
     }
 
+    /// Emits a status event through a provided emitter when available.
+    ///
+    /// Note:
+    /// Internal helper used by macro expansion.
+    /// A missing emitter results in a no-op.
     pub fn ind_status_emit_sync(emitter: Option<&StatusEmitter>, se: StatusEvent) {
         if let Some(emit) = emitter {
             status_emit_sync(emit, se);
@@ -149,7 +202,15 @@ mod __private {
         }
     }
 
-    /// Constructs a `StatusEvent` object from optional fields passed by macros without id.
+    /// Constructs a `StatusEvent` with the default identifier.
+    ///
+    /// Doc:
+    /// Used by macro forms that do not provide an `id` field.
+    ///
+    /// Note:
+    /// - Sets the identifier to `Id::None`.
+    /// - Equivalent to constructing a status event without an explicit ID.
+    /// - Internal helper for macro expansion.
     pub fn build_status_event_no_id(
         action: impl IntoCowOpt,
         current: Option<usize>,
@@ -160,7 +221,14 @@ mod __private {
         int_status_event_build_id(Id::None, action, current, total, message, path)
     }
 
-    /// Constructs a `StatusEvent` object from optional fields passed by macros with id.
+    /// Constructs a `StatusEvent` with an identifier.
+    ///
+    /// Doc:
+    /// Entry point used by macro forms that provide an `id` field.
+    ///
+    /// Note:
+    /// - Accepts any type implementing `IntoId`.
+    /// - Internal helper for macro expansion.
     pub fn build_status_event_id(
         id: impl IntoId,
         action: impl IntoCowOpt,

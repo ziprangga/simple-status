@@ -7,19 +7,16 @@
 //! display, such as the current action, progress, message, optional filesystem
 //! path, and an optional typed identifier.
 //!
-//! A status event may exist in one of two forms:
+//! A status event may contain an optional identifier represented by [`Id`].
 //!
-//! - [`StatusEvent<NoId>`] — no identifier is attached.
-//! - [`StatusEvent<I>`] — an identifier of type `I` is attached.
-//!
-//! The builder supports transitioning from a status event without an ID to one
-//! with a strongly typed ID.
+//! The identifier can store built-in types such as `u64` and `String`, or
+//! application-specific types through [`Id::Custom`].
 //!
 //! [`StatusEvent`] provides:
 //!
 //! - Access to the stored event data.
 //! - Optional message and filesystem path storage.
-//! - Optional strongly typed identifiers.
+//! - Optional identifiers through [`Id`].
 //! - Custom rendering through [`StatusEventRenderer`].
 //!
 //! Most users will construct a status event through the builder.
@@ -50,7 +47,7 @@
 //!     .event(Event::default())
 //!     .build();
 //!
-//! assert_eq!(*status.id(), 42);
+//! assert_eq!(status.id().as_u64(), Some(42));
 //! ```
 //!
 //! Module summary.
@@ -58,15 +55,12 @@
 //! Doc:
 //! - Explains the public API.
 //! - Describes how status events are created and rendered.
-//! - Documents the typed-ID state transition model.
+//! - Documents identifier handling and rendering behavior.
 //!
 //! Note:
-//! - `StatusEvent` owns all stored data.
-//! - The ID type is generic to allow applications to use domain-specific
-//!   identifiers without allocations or trait objects.
-//! - `NoId` is used as the default state so IDs remain completely optional.
-//! - The builder uses type transitions to prevent accidental construction of
-//!   invalid ID states.
+//! - [`StatusEvent`] owns all stored data.
+//! - [`Id`] allows optional identifiers without requiring generic parameters.
+//! - Custom identifiers can be stored and retrieved through [`Id::Custom`].
 //!..
 
 mod event;
@@ -77,13 +71,14 @@ use std::borrow::Cow;
 use std::path::PathBuf;
 use std::sync::Arc;
 
-/// Marker type representing the absence of an ID.
+/// Represents an optional identifier attached to a status event.
 ///
-/// This type is used as the default generic parameter for [`StatusEvent`].
+/// `Id` supports common identifier types and allows applications to store
+/// custom identifier values.
 ///
 /// Doc:
-/// - Indicates that no identifier is attached.
-/// - Serves as the builder's initial state.
+/// - `None` represents the absence of an identifier.
+/// - Other variants store available identifier values.
 ///
 /// Note:
 /// - Zero-sized type.
@@ -114,7 +109,7 @@ pub trait IntoId {
 /// - UI-specific view models.
 ///
 /// Any closure or function matching
-/// `Fn(&StatusEvent<I>) -> O` automatically implements this trait.
+/// `Fn(&StatusEvent) -> O` automatically implements this trait.
 ///
 /// # Example
 ///
@@ -136,7 +131,7 @@ pub trait IntoId {
 /// - Supports arbitrary output types through the associated `Output` type.
 ///
 /// Note:
-/// - The renderer is generic over the status event's ID type.
+/// - Rendering is independent from identifier storage.
 /// - Closures and functions automatically implement this trait.
 /// - Rendering is intentionally separated from storage to keep
 ///   `StatusEvent` focused on data ownership.
@@ -152,20 +147,18 @@ pub trait StatusEventRenderer {
 /// operation, along with optional metadata such as a message, filesystem path,
 /// and typed identifier.
 ///
-/// The identifier type is determined by the generic parameter `I`.
+/// The identifier is stored as an [`Id`] value.
 ///
 /// Doc:
 /// - A `StatusEvent` owns exactly one `Event`.
 /// - Additional metadata can be attached through the message and path fields.
-/// - An optional strongly typed ID may be associated with the event.
+/// - An optional identifier may be associated with the event.
 /// - It is the primary object passed around the library.
 ///
 /// Note:
 /// - `StatusEvent` intentionally owns its data instead of borrowing it.
 /// - Ownership avoids lifetime propagation throughout the public API.
-/// - The generic ID parameter allows applications to use their own identifier
-///   types without runtime overhead.
-/// - `NoId` represents the absence of an identifier.
+/// - [`Id::Custom`] allows applications to store domain-specific identifiers.
 #[derive(Debug, Default, Clone)]
 pub struct StatusEvent {
     id: Id,
@@ -186,8 +179,9 @@ impl StatusEvent {
     /// - Provides read-only access to the stored identifier.
     ///
     /// Note:
-    /// - The returned type matches the status event's generic ID type.
-    /// - For `StatusEvent<NoId>`, this returns a reference to the `NoId` marker.
+    /// - Returns the stored [`Id`] representation.
+    /// - Use helper methods such as [`Id::as_u64`], [`Id::as_string`], or
+    ///   [`Id::downcast_ref`] to access the stored value.
     pub fn id(&self) -> &Id {
         &self.id
     }
@@ -315,17 +309,16 @@ impl IntoId for String {
 
 /// Builder for constructing [`StatusEvent`] values.
 ///
-/// The builder starts in the [`NoId`] state and may optionally transition to a
-/// typed-ID state through [`StatusEventBuilder::id`].
+/// The builder starts without an identifier and may attach an [`Id`] value
+/// through [`StatusEventBuilder::id`].
 ///
 /// Doc:
 /// - Supports incremental construction of status events.
-/// - Allows attaching an optional typed identifier.
+/// - Allows attaching an optional identifier.
 /// - Produces a fully owned [`StatusEvent`].
 ///
 /// Note:
-/// - Uses type-state transitions instead of runtime validation.
-/// - The builder type changes when an ID is attached.
+/// - The builder stores the identifier internally as [`Id`].
 #[derive(Debug, Default, Clone)]
 pub struct StatusEventBuilder {
     status_event: StatusEvent,
@@ -372,7 +365,7 @@ impl StatusEventBuilder {
     /// Doc:
     /// - Consumes the builder.
     /// - Returns the constructed status event.
-    /// - Preserves the builder's ID type parameter.
+    /// - Preserves the stored [`Id`] value.
     ///
     /// Note:
     /// - No validation is performed.

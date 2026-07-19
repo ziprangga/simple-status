@@ -10,9 +10,9 @@
 //!
 //! The crate is built around three core concepts:
 //!
-//! - `Status` represents a single status update.
-//! - `Emitter` sends status updates.
-//! - `Receiver` receives status updates.
+//! - `StatusEvent` represents a single status update.
+//! - `Emitter` sends values.
+//! - `Receiver` receives values.
 //!
 //! The crate supports both:
 //!
@@ -31,16 +31,16 @@
 //!
 //! The crate intentionally separates three responsibilities:
 //!
-//! - `Status` describes state.
-//! - Channels transport state.
-//! - Macros provide a concise interface for constructing and emitting state.
+//! - `StatusEvent` describes status state.
+//! - Channels transport values.
+//! - Macros provide a concise interface for constructing and emitting status events.
 //!
 //! This separation keeps the data model, transport layer, and ergonomics
 //! independent, allowing applications to use only the components they need.
 //!
-//! The crate is designed around abstractions (`Emitter`, `Receiver`, and
-//! `Status`) so that different communication mechanisms can share a common
-//! interface.
+//! The crate is designed around generic communication abstractions
+//! (`Emitter<T>` and `Receiver<T>`) while providing `StatusEvent`
+//! as the default event type used by the status system.
 //!..
 
 mod channels;
@@ -51,16 +51,16 @@ mod macros;
 
 use channels::BroadcastEmitter;
 use channels::BroadcastReceiver;
-use channels::Channels;
-use channels::Emitter;
 use channels::MpscEmitter;
 use channels::MpscReceiver;
-use channels::Receiver;
 
 pub use channels::BoxFuture;
 pub use channels::BoxStream;
 pub use channels::ChannelKind;
+pub use channels::Channels;
+pub use channels::Emitter;
 pub use channels::EmitterHandler;
+pub use channels::Receiver;
 pub use channels::ReceiverHandler;
 pub use status_event::Event;
 pub use status_event::Id;
@@ -204,11 +204,15 @@ pub fn init_channels(bus: &ChannelsBus, buffer: usize, kind: ChannelKind) {
 /// # Example
 ///
 /// ```rust
-/// use simple_status::{create_channels, ChannelKind};
+/// use simple_status::{create_channels, ChannelKind, StatusEvent};
 ///
 /// let channels = create_channels(32, ChannelKind::Broadcast);
 ///
-/// channels.emit_sync("hello");
+/// channels.emit_sync(
+///     StatusEvent::builder()
+///         .message("hello")
+///         .build(),
+/// );
 /// ```
 ///
 /// # Note

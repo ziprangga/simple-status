@@ -16,14 +16,14 @@ pub trait EmitterHandler<T>: Send + Sync {
     ///
     /// Note:
     /// This method should complete the emission before returning.
-    fn try_emit(&self, se: T);
+    fn try_emit(&self, value: T);
 
-    /// Emits a valueasynchronously.
+    /// Emits a value asynchronously.
     ///
     /// Note:
     /// The returned future is driven by the caller and does not begin
     /// execution until it is polled.
-    fn emit(&self, se: T) -> BoxFuture<'_, ()>;
+    fn emit(&self, value: T) -> BoxFuture<'_, ()>;
 
     /// Creates a new receiver from this emitter, if supported.
     ///
@@ -36,11 +36,11 @@ pub trait EmitterHandler<T>: Send + Sync {
 /// Type-erased value emitter.
 ///
 /// Doc:
-/// Provides a uniform API over any type implementing
-/// `EmitterHandler`.
+/// Provides a uniform API over any backend implementing
+/// `EmitterHandler<T>`.
 ///
 /// Note:
-/// Uses dynamic dispatch (`Arc<dyn EmitterHandler>`) so different emitter
+/// Uses dynamic dispatch (`Arc<dyn EmitterHandler<T>>`) so different emitter
 /// implementations share the same public interface.
 #[derive(Clone)]
 pub struct Emitter<T> {
@@ -51,18 +51,19 @@ impl<T> Emitter<T>
 where
     T: Send + Sync + Clone + 'static,
 {
+    /// Creates an emitter from a type-erased handler.
     pub fn new(emitter: Arc<dyn EmitterHandler<T>>) -> Self {
         Self { emitter }
     }
 
     /// Emits a value synchronously.
-    pub fn emit_sync(&self, se: T) {
-        self.emitter.try_emit(se);
+    pub fn emit_sync(&self, value: T) {
+        self.emitter.try_emit(value);
     }
 
     /// Emits a value asynchronously.
-    pub async fn emit_async(&self, se: T) {
-        self.emitter.emit(se).await;
+    pub async fn emit_async(&self, value: T) {
+        self.emitter.emit(value).await;
     }
 
     /// Creates a new receiver from this emitter, if supported.
@@ -70,6 +71,11 @@ where
         self.emitter.subscribe()
     }
 
+    /// Creates an emitter from a concrete handler implementation.
+    ///
+    /// This is the preferred constructor when wrapping custom emitter backends.
+    ///
+    /// This is the preferred constructor when wrapping custom emitter backends.
     pub fn from_handler<H>(handler: H) -> Self
     where
         H: EmitterHandler<T> + 'static,
@@ -83,7 +89,7 @@ where
 impl<T> std::fmt::Debug for Emitter<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("StatusEmitter")
-            .field("emitter", &"<dyn valueEmitterHandler>")
+            .field("emitter", &"<dyn EmitterHandler>")
             .finish()
     }
 }

@@ -12,11 +12,11 @@
 //! - Broadcast channels
 //!
 //! Note:
-//! `Emitter` and `Receiver` are intentionally thin wrappers around trait
-//! objects (`EmitterHandler` and `ReceiverHandler`). This separates the public
-//! API from concrete channel implementations, allowing different transports
-//! (such as MPSC, Broadcast, or future implementations) to share the same
-//! interface without changing user code.
+//! `Emitter` and `Receiver` are generic over the transmitted value type,
+//! intentionally thin wrappers around trait objects (`EmitterHandler` and `ReceiverHandler`).
+//! This separates the public API from concrete channel implementations,
+//! allowing different transports (such as MPSC, Broadcast, or future implementations)
+//! to share the same interface without changing user code.
 //!..
 
 mod channel_emitter;
@@ -67,13 +67,14 @@ impl std::str::FromStr for ChannelKind {
     }
 }
 
-/// Owns an optional emitter and receiver.
+/// Owns an emitter and receiver pair.
 ///
 /// Doc:
 /// `Channels` provides a convenient wrapper for working with both sides of a
 /// communication channel through a single object.
 ///
-/// Either side may be absent depending on the application's requirements.
+/// `T` represents the transmitted value type. The default type is
+/// [`StatusEvent`].
 ///
 /// Note:
 /// Both components are stored inside `Arc` so they can be cheaply cloned and
@@ -88,10 +89,7 @@ impl<T> Channels<T>
 where
     T: Send + Sync + Clone + 'static,
 {
-    /// Creates a new channel container.
-    ///
-    /// Doc:
-    /// Both the emitter and receiver are optional.
+    /// Creates a new channel container from an emitter and receiver.
     pub fn new(emitter: impl Into<Emitter<T>>, receiver: impl Into<Receiver<T>>) -> Self {
         Self {
             emitter: Arc::new(emitter.into()),
@@ -109,12 +107,12 @@ where
         self.receiver = Arc::new(receiver.into());
     }
 
-    /// Returns a shared emitter, if one exists.
+    /// Returns a shared emitter.
     pub fn get_emitter(&self) -> Arc<Emitter<T>> {
         self.emitter.clone()
     }
 
-    /// Returns a shared receiver, if one exists.
+    /// Returns a shared receiver.
     pub fn get_receiver(&self) -> Arc<Receiver<T>> {
         self.receiver.clone()
     }
@@ -123,8 +121,6 @@ where
     ///
     /// Doc:
     /// Performs an immediate, non-async emission.
-    ///
-    /// If no emitter exists, this method does nothing.
     pub fn emit_sync(&self, se: T) {
         self.emitter.emit_sync(se);
     }
@@ -133,22 +129,20 @@ where
     ///
     /// Doc:
     /// Awaits the underlying channel implementation.
-    ///
-    /// If no emitter exists, this method completes immediately.
     pub async fn emit_async(&self, se: T) {
         self.emitter.emit_async(se).await;
     }
 
     /// Attempts to receive a value synchronously.
     ///
-    /// Returns `None` if no receiver exists or no value is available.
+    /// Returns `None` if no value is available.
     pub fn recv_sync(&self) -> Option<T> {
         self.receiver.sync_recv()
     }
 
     /// Receives the next value asynchronously.
     ///
-    /// Returns `None` if no receiver exists.
+    /// Returns `None` if no value is available.
     pub async fn recv_async(&self) -> Option<T> {
         self.receiver.async_recv().await
     }

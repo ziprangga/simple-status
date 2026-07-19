@@ -2,7 +2,7 @@
 ///
 /// Doc:
 /// - Parses all supported `status!` invocation forms.
-/// - Constructs a `StatusEvent` through internal helper functions.
+/// - Normalizes macro inputs and delegates construction to internal helpers.
 /// - Exists to keep the public macro as a thin forwarding layer.
 ///
 /// Note:
@@ -212,6 +212,7 @@ macro_rules! __status_emit {
 /// manually using the builder APIs.
 ///
 /// Supported fields:
+/// - `id`
 /// - `action`
 /// - `current`
 /// - `total`
@@ -231,6 +232,15 @@ macro_rules! __status_emit {
 ///     action: "Build",
 ///     current: 2,
 ///     total: 10,
+///     message: "Compiling",
+/// );
+/// ```
+///
+/// ```rust
+/// use simple_status::status;
+///
+/// let status = status!(
+///     id: "task-1".to_string(),
 ///     message: "Compiling",
 /// );
 /// ```
@@ -272,34 +282,32 @@ macro_rules! status {
 /// function, reducing the boilerplate required to report status updates.
 ///
 /// Supported modes:
-/// - Global synchronous emission
-/// - Global asynchronous emission
-/// - Emitter-specific synchronous emission
-/// - Emitter-specific asynchronous emission
+/// - Bus-based synchronous emission
+/// - Bus-based asynchronous emission
+/// - Emitter-based synchronous emission
+/// - Emitter-based asynchronous emission
 ///
 /// # Examples
 ///
-/// Global synchronous emission:
+/// Bus-based:
+///
+/// ```rust
+/// static STATUS_BUS: ChannelsBus = ChannelsBus::new();
+///
+/// init_channels(&STATUS_BUS, 32, ChannelKind::Broadcast);
+/// ```
+/// Emit synchronously:
 ///
 /// ```rust
 /// use simple_status::status_emit;
 ///
 /// status_emit!(
-///     action: "Build",
-///     current: 2,
-///     total: 10,
+///     bus STATUS_BUS,
+///     "Application started"
 /// );
 /// ```
 ///
-/// Global synchronous message:
-///
-/// ```rust
-/// use simple_status::status_emit;
-///
-/// status_emit!("Build completed");
-/// ```
-///
-/// Global asynchronous emission:
+/// Emit asynchronously:
 ///
 /// ```rust
 /// # async {
@@ -307,40 +315,40 @@ macro_rules! status {
 ///
 /// status_emit!(
 ///     async,
+///     bus STATUS_BUS,
 ///     action: "Download",
 ///     current: 5,
 ///     total: 10,
 /// );
-/// # };
+/// # }
+/// ```
+/// Emitter-based:
+///
+/// ```rust
+/// use simple_status::{status_emit, StatusEmitter};
+///
+/// fn emit_sync_message(emitter: &StatusEmitter) {
+///     status_emit!(
+///         emitter,
+///         "{}",
+///         "this is EMIT SYNC INDEPENDENT".to_string()
+///     );
+/// }
 /// ```
 ///
-/// Emitter-specific synchronous emission:
+/// Emit asynchronously:
 ///
-/// ```rust,no_run
-/// # let emitter = todo!();
+/// ```rust
 /// use simple_status::status_emit;
 ///
-/// status_emit!(
-///     emitter,
-///     action: "Build",
-///     current: 3,
-///     total: 10,
-/// );
-/// ```
-///
-/// Emitter-specific asynchronous emission:
-///
-/// ```rust,no_run
-/// # async {
-/// # let emitter = todo!();
-/// use simple_status::status_emit;
-///
-/// status_emit!(
-///     async,
-///     emitter,
-///     action: "Build",
-/// );
-/// # };
+/// async fn emit_async_message(emitter: &StatusEmitter) {
+///     status_emit!(
+///         async,
+///         emitter,
+///         "{}",
+///         "this is EMIT ASYNC INDEPENDENT".to_string()
+///     );
+/// }
 /// ```
 ///
 /// Note:

@@ -12,7 +12,8 @@ can either use independent channels or store channels in a shared
 - Independent Channels: Create isolated event pipelines with `create_channels()`.
 - Shared Channels: Store channels in a `ChannelsBus` and initialize them once with `init_channels()`.
 - Synchronous and asynchronous event emission and reception.
-- Built-in status event model with progress tracking, messages, and paths.
+- Built-in status event model with progress tracking, messages, paths, and optional identifiers.
+- Optional event identifiers through `Id` (`u64`, `String`, or custom types).
 - `status!` and `status_emit!` macros for concise event creation and emission.
 - MPSC and Broadcast channel implementations.
 - Broadcast subscriptions via `subscribe()`.
@@ -101,6 +102,65 @@ emit_sync(
 if let Some(event) = recv_sync(&STATUS_BUS) {
     println!("{}", event);
 }
+```
+
+### Generic channels
+
+`Channels`, `Emitter`, and `Receiver` are generic and default to `StatusEvent`.
+
+```rust
+use simple_status::{Channels, StatusEvent};
+
+// Default type
+let channels: Channels;
+let channels: Channels<StatusEvent>;
+```
+
+```rust
+use simple_status::Channels;
+
+// Custom value types
+let string_channels: Channels<String>;
+let number_channels: Channels<u64>;
+```
+
+All channel types follow the same pattern:
+
+```rust
+use simple_status::{Channels, Emitter, Receiver};
+
+let channels: Channels<String>;
+let emitter: Emitter<String>;
+let receiver: Receiver<String>;
+```
+
+The generic type must implement:
+
+```rust
+T: Send + Sync + Clone + 'static
+```
+
+
+### Event identifiers
+
+Status events may optionally contain an identifier.
+
+```rust
+use simple_status::status;
+
+let event = status!(
+    id: 42u64,
+    message: "Compiling",
+);
+
+assert_eq!(event.id().as_u64(), Some(42));
+
+let event = status!(
+    id: "build-01".to_string(),
+    message: "Running",
+);
+
+assert_eq!(event.id().as_string(), Some("build-01"));
 ```
 
 ### Creating events
@@ -239,10 +299,6 @@ if let Some(receiver) = channels.subscribe() {
     }
 }
 ```
-Broadcast channels additionally support subscriptions through `subscribe()`.
-```rust
-let new_sub = channels.subscriber(); // Option<Arc<Receiver>>
-```
 
 ## Channel Implementations
 
@@ -258,7 +314,6 @@ The crate currently provides two built-in channel implementations:
 - `Receiver` – receives events.
 - `Channels` – owns an emitter and receiver pair.
 - `ChannelsBus` – stores a shared channel set initialized once.
-
 
 ## License
 

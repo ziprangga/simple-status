@@ -55,13 +55,13 @@ impl<T> EmitterHandler<T> for MpscEmitter<T>
 where
     T: Send + Sync + Clone + 'static,
 {
-    fn try_emit(&self, se: T) {
-        let _ = self.sender.try_send(se);
+    fn try_emit(&self, value: T) {
+        let _ = self.sender.try_send(value);
     }
 
-    fn emit(&self, se: T) -> BoxFuture<'_, ()> {
+    fn emit(&self, value: T) -> BoxFuture<'_, ()> {
         Box::pin(async move {
-            let _ = self.sender.send(se).await;
+            let _ = self.sender.send(value).await;
         })
     }
 
@@ -96,13 +96,13 @@ impl<T> EmitterHandler<T> for BroadcastEmitter<T>
 where
     T: Send + Sync + Clone + 'static,
 {
-    fn try_emit(&self, se: T) {
-        let _ = self.sender.send(se);
+    fn try_emit(&self, value: T) {
+        let _ = self.sender.send(value);
     }
 
-    fn emit(&self, se: T) -> BoxFuture<'_, ()> {
+    fn emit(&self, value: T) -> BoxFuture<'_, ()> {
         Box::pin(async move {
-            self.try_emit(se);
+            self.try_emit(value);
         })
     }
 

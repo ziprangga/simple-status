@@ -30,7 +30,7 @@ pub trait ReceiverHandler<T>: Send + Sync {
     /// Creates a stream of received values.
     ///
     /// Note:
-    /// The returned stream is driven by the caller and yields valuees
+    /// The returned stream is driven by the caller and yields values
     /// until the receiver is exhausted or the underlying channel is closed.
     fn stream(&self) -> BoxStream<'_, T>;
 }
@@ -43,7 +43,7 @@ pub trait ReceiverHandler<T>: Send + Sync {
 ///
 /// Note:
 /// Like `Emitter`, this type hides the concrete receiver implementation behind
-/// dynamic dispatch.
+/// `Arc<dyn ReceiverHandler<T>>`.
 #[derive(Clone)]
 pub struct Receiver<T> {
     receiver: Arc<dyn ReceiverHandler<T>>,
@@ -53,6 +53,7 @@ impl<T> Receiver<T>
 where
     T: Send + Sync + Clone + 'static,
 {
+    /// Creates a receiver from a type-erased handler.
     pub fn new(receiver: Arc<dyn ReceiverHandler<T>>) -> Self {
         Self { receiver }
     }
@@ -70,8 +71,8 @@ where
     /// Converts this receiver into an asynchronous stream.
     ///
     /// Doc:
-    /// The stream repeatedly calls `async_recv()` until no more values are
-    /// available.
+    /// The stream repeatedly calls `async_recv()` until the receiver returns
+    /// `None`.
     ///
     /// Note:
     /// This is a convenience wrapper built using `futures::stream::unfold`.
@@ -85,6 +86,10 @@ where
         Some(Box::pin(s) as BoxStream<'static, T>)
     }
 
+    /// Creates a receiver from a concrete handler implementation.
+    ///
+    /// Note:
+    /// This allows custom receiver backends to be wrapped by `Receiver`.
     pub fn from_handler<H>(handler: H) -> Self
     where
         H: ReceiverHandler<T> + 'static,
@@ -98,7 +103,7 @@ where
 impl<I> std::fmt::Debug for Receiver<I> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("StatusReceiver")
-            .field("receiver", &"<dyn StatusReceiverHandler>")
+            .field("receiver", &"<dyn ReceiverHandler>")
             .finish()
     }
 }
