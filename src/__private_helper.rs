@@ -79,6 +79,18 @@ mod __private {
         fn into_cow_opt(self) -> Option<Cow<'static, str>>;
     }
 
+    impl<T: IntoCowOpt> IntoCowOpt for Option<T> {
+        fn into_cow_opt(self) -> Option<Cow<'static, str>> {
+            self.and_then(|x| x.into_cow_opt())
+        }
+    }
+
+    impl IntoCowOpt for Cow<'static, str> {
+        fn into_cow_opt(self) -> Option<Cow<'static, str>> {
+            Some(self)
+        }
+    }
+
     impl IntoCowOpt for &'static str {
         fn into_cow_opt(self) -> Option<Cow<'static, str>> {
             Some(Cow::Borrowed(self))
@@ -91,9 +103,9 @@ mod __private {
         }
     }
 
-    impl<T: IntoCowOpt> IntoCowOpt for Option<T> {
+    impl IntoCowOpt for Arc<str> {
         fn into_cow_opt(self) -> Option<Cow<'static, str>> {
-            self.and_then(|x| x.into_cow_opt())
+            Some(Cow::Owned(self.to_string()))
         }
     }
 
