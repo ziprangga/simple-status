@@ -3,29 +3,29 @@
 //! This module provides the default textual representation of a
 //! [`StatusEvent`].
 //!
-//! [`DefaultRenderer`] converts a status event into a `String` using a stable
-//! formatting scheme. The [`Display`] implementation for [`StatusEvent`]
-//! delegates to this renderer.
+//! [`DefaultDisplayRenderer`] converts a status event into a `String` using a
+//! stable formatting scheme. The [`Display`] implementation for
+//! [`StatusEvent`] delegates to this renderer.
 //!
 //! Doc:
 //! - Defines the default text renderer for [`StatusEvent`].
-//! - Provides the implementation used by [`Display`].
-//! - Centralizes formatting behavior.
+//! - Provides the formatting implementation used by [`Display`].
+//! - Centralizes default textual formatting behavior.
 //!
 //! Note:
 //! - Rendering is intentionally separated from status-event storage.
 //! - Alternative renderers can be implemented through
-//!   [`StatusEventRenderer`].
+//!   [`Renderer<StatusEvent>`].
 //! - Formatting behavior should remain consistent between
-//!   [`DefaultRenderer`] and [`Display`].
+//!   [`DefaultDisplayRenderer`] and [`Display`].
 //!..
 
+use crate::renderer::Renderer;
 use crate::status_event::StatusEvent;
-use crate::status_event::StatusEventRenderer;
 
 /// Default text renderer for [`StatusEvent`].
 ///
-/// Produces the default string representation for a status event.
+/// Produces the default string representation of a status event.
 ///
 /// Doc:
 /// - Converts a [`StatusEvent`] into a `String`.
@@ -36,24 +36,24 @@ use crate::status_event::StatusEventRenderer;
 /// - Rendering order is intentionally stable.
 /// - Formatting behavior is kept separate from status-event storage.
 /// - Applications may define alternative renderers by implementing
-///   [`StatusEventRenderer`].
-pub struct DefaultRenderer;
+///   [`Renderer<StatusEvent>`].
+pub struct DefaultDisplayRenderer;
 
-impl StatusEventRenderer for DefaultRenderer {
+impl Renderer<StatusEvent> for DefaultDisplayRenderer {
     type Output = String;
 
-    /// Renders a [`StatusEvent`] into its default textual form.
+    /// Renders a [`StatusEvent`] into its default textual representation.
     ///
     /// Doc:
-    /// - Includes the message when present.
+    /// - Includes the status message when present.
     /// - Includes the event action when present.
     /// - Includes progress information when available.
     /// - Includes the associated filesystem path when present.
     ///
     /// Note:
     /// - Missing fields are omitted entirely.
-    /// - The exact formatting is considered part of the default renderer's
-    ///   behavior and may differ from custom renderers.
+    /// - Output ordering is intentionally stable.
+    /// - Formatting behavior may differ from application-defined renderers.
     fn render(&self, se: &StatusEvent) -> String {
         let mut out = String::new();
 
@@ -91,20 +91,22 @@ impl StatusEventRenderer for DefaultRenderer {
     }
 }
 
-/// Formats a [`StatusEvent`] using [`DefaultRenderer`].
+/// Formats a [`StatusEvent`] using [`DefaultDisplayRenderer`].
 ///
 /// Doc:
 /// - Provides the default textual representation of a status event.
-/// - Delegates formatting to [`DefaultRenderer`].
+/// - Delegates formatting to [`DefaultDisplayRenderer`].
+/// - Enables use with standard formatting APIs.
 ///
 /// Note:
 /// - Formatting logic is intentionally centralized in
-///   [`DefaultRenderer`].
+///   [`DefaultDisplayRenderer`].
 /// - This implementation should remain behaviorally equivalent to
-///   calling `DefaultRenderer.render(...)`.
+///   calling `DefaultDisplayRenderer.render(...)`.
+/// - Applications requiring alternative formatting should use a custom
+///   renderer through the rendering framework.
 impl std::fmt::Display for StatusEvent {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let text = DefaultRenderer.render(self);
-        f.write_str(&text)
+        f.write_str(&DefaultDisplayRenderer.render(self))
     }
 }

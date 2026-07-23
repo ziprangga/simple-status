@@ -56,6 +56,7 @@
 //!..
 
 mod channels;
+mod renderer;
 mod status_event;
 
 #[macro_use]
@@ -74,7 +75,9 @@ pub use status_event::Event;
 pub use status_event::Id;
 pub use status_event::IntoId;
 pub use status_event::StatusEvent;
-pub use status_event::StatusEventRenderer;
+// pub use status_event::StatusEventRenderer;
+pub use renderer::Renderable;
+pub use renderer::Renderer;
 
 // // Re-export commonly used stream extension traits for convenience.
 pub use futures::StreamExt;
